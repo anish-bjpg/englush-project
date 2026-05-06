@@ -522,37 +522,24 @@ async function goDiscuss(){
 
 function discussView(){
   const game=gameState;if(!game)return'';
-  const q=(game.questions||QUESTIONS)[game.qIdx||0];
-  const isHost=game.hostId===myId;
   const players=shuffleArr(Object.values(game.players||{}).filter(p=>p.alive));
   return`<h1>The Grand Discussion</h1>
-  <p class="subtitle" style="margin-bottom:14px">Question ${(game.qIdx||0)+1} of ${(game.questions||[]).length}</p>
+  <p class="subtitle" style="margin-bottom:16px">"Speak wisely — the imposter lurks among thee!"</p>
   <div class="discuss-box">
-    <p style="font-size:11px;color:var(--muted);font-style:italic;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Each player answers in turn:</p>
-    <p class="discuss-q">"${q}"</p>
-  </div>
-  <div style="margin:10px 0">
-    <p style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:6px">Speaking order:</p>
-    <ul class="player-list">
+    <p style="font-size:11px;color:var(--muted);font-style:italic;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Speaking order this round:</p>
+    <ul class="player-list" style="margin-top:8px">
       ${players.map((p,i)=>`<li>
-        <span style="font-family:'Cinzel',serif;font-size:11px;color:var(--gold);min-width:20px">${i+1}.</span>
+        <span style="font-family:'Cinzel',serif;font-size:13px;color:var(--gold);min-width:24px">${i+1}.</span>
         <span style="flex:1">${p.name}</span>
         ${p.id===myId?'<span class="badge badge-you">You</span>':''}
       </li>`).join('')}
     </ul>
   </div>
+  <p style="font-size:13px;color:var(--muted);font-style:italic;text-align:center;margin:12px 0">Discuss freely — when ready, anyone may call a vote.</p>
   <div class="divider"></div>
-  ${isHost?`<div style="display:flex;gap:8px">
-    ${(game.qIdx||0)>0?`<button class="btn btn-secondary" style="flex:1" onclick="prevQ()">← Prev</button>`:''}
-    ${(game.qIdx||0)<(game.questions||[]).length-1
-      ?`<button class="btn btn-gold" style="flex:1" onclick="nextQ()">Next →</button>`
-      :`<button class="btn btn-primary" style="flex:1" onclick="goVote()">⚔ Vote Now</button>`}
-  </div>`:`<p class="info">The host shall advance the questions...</p>
-  <button class="btn btn-secondary btn-full" onclick="forceVote()" style="margin-top:6px">Request Vote (majority needed)</button>`}`;
-}
+  <button class="btn btn-primary btn-full" onclick="forceVote()">⚔ Call a Vote</button>`;}
 
-async function prevQ(){const game=gameState;if(!game)return;await updateGame({qIdx:Math.max(0,(game.qIdx||0)-1)});}
-async function nextQ(){const game=gameState;if(!game)return;await updateGame({qIdx:Math.min((game.questions||[]).length-1,(game.qIdx||0)+1)});}
+async function prevQ(){} async function nextQ(){}
 async function goVote(){await updateGame({phase:'vote',votes:{}});}
 async function forceVote(){
   const game=gameState;if(!game)return;
@@ -560,7 +547,7 @@ async function forceVote(){
   if(!vr.includes(myId))vr.push(myId);
   const alive=Object.values(game.players||{}).filter(p=>p.alive).length;
   if(vr.length>=Math.ceil(alive/2)){await updateGame({phase:'vote',votes:{},voteRequests:[]});}
-  else{await updateGame({voteRequests:vr});}
+  else{await updateGame({voteRequests:vr,phase:'discuss'});alert(`Vote requested! ${vr.length}/${Math.ceil(alive/2)} needed to proceed.`);}
 }
 
 function voteView(){
