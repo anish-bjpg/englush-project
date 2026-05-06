@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Imposter's Gambit — A Shakespearean Word Game</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --ink:#1a0f00;--parchment:#f5e6c8;--parchment2:#ede0b8;--gold:#b8860b;--gold2:#d4a017;
+    --red:#8b1a1a;--green:#1a4a1a;--shadow:rgba(26,15,0,0.25);
+    --border:rgba(184,134,11,0.4);--muted:#6b4c1e;
+  }
+  body{font-family:'IM Fell English',Georgia,serif;background:#2c1a06;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;}
+  .stage{background:var(--parchment);border:2px solid var(--gold);border-radius:4px;width:100%;max-width:640px;min-height:520px;position:relative;box-shadow:0 8px 32px var(--shadow),inset 0 0 60px rgba(184,134,11,0.08);overflow:hidden;}
+  .stage::before{content:'';position:absolute;inset:6px;border:1px solid rgba(184,134,11,0.25);border-radius:2px;pointer-events:none;z-index:0;}
+  .corner{position:absolute;font-size:18px;color:var(--gold);opacity:0.5;z-index:1;line-height:1;}
+  .corner.tl{top:10px;left:10px}.corner.tr{top:10px;right:10px}.corner.bl{bottom:10px;left:10px}.corner.br{bottom:10px;right:10px}
+  .scene{position:relative;z-index:2;padding:28px 32px 24px;}
+  h1{font-family:'Cinzel',serif;font-size:22px;font-weight:700;color:var(--red);text-align:center;letter-spacing:1px;margin-bottom:4px;}
+  .subtitle{font-style:italic;color:var(--muted);text-align:center;font-size:13px;margin-bottom:20px;}
+  h2{font-family:'Cinzel',serif;font-size:16px;font-weight:600;color:var(--ink);margin-bottom:12px;}
+  input[type=text]{width:100%;padding:9px 12px;background:var(--parchment2);border:1px solid var(--border);border-radius:3px;font-family:inherit;font-size:15px;color:var(--ink);outline:none;transition:border-color 0.2s;}
+  input[type=text]:focus{border-color:var(--gold);}
+  input[type=text]::placeholder{color:var(--muted);font-style:italic;opacity:0.7;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 20px;border-radius:3px;font-family:'Cinzel',serif;font-size:13px;font-weight:600;cursor:pointer;border:1px solid;transition:all 0.15s;letter-spacing:0.5px;text-align:center;}
+  .btn-primary{background:var(--red);color:#f5e6c8;border-color:var(--red);}.btn-primary:hover{background:#a01f1f;}
+  .btn-secondary{background:transparent;color:var(--ink);border-color:var(--border);}.btn-secondary:hover{background:var(--parchment2);}
+  .btn-gold{background:var(--gold);color:#1a0f00;border-color:var(--gold2);}.btn-gold:hover{background:var(--gold2);}
+  .btn:disabled{opacity:0.45;cursor:not-allowed;}.btn-full{width:100%;}
+  .divider{height:1px;background:var(--border);margin:16px 0;}
+  .room-code{font-family:'Cinzel',serif;font-size:32px;font-weight:700;color:var(--red);text-align:center;letter-spacing:8px;padding:12px;background:var(--parchment2);border:1px dashed var(--border);border-radius:3px;margin:12px 0;}
+  .player-list{list-style:none;display:flex;flex-direction:column;gap:6px;}
+  .player-list li{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--parchment2);border:1px solid var(--border);border-radius:3px;font-size:14px;color:var(--ink);}
+  .badge{font-family:'Cinzel',serif;font-size:10px;padding:2px 7px;border-radius:2px;font-weight:600;letter-spacing:0.5px;}
+  .badge-host{background:var(--gold);color:#1a0f00;}.badge-you{background:var(--green);color:#c8e6c8;}.badge-ready{background:#1a4a1a;color:#c8f0c8;}
+  .badge-fresh{background:#4a2a0a;color:#f5d898;}.badge-soph{background:#1a2a4a;color:#98c4f5;}
+  .word-reveal{text-align:center;padding:20px;background:var(--parchment2);border:2px solid var(--gold);border-radius:4px;margin:12px 0;}
+  .word-label{font-size:12px;color:var(--muted);font-style:italic;margin-bottom:6px;}
+  .word-big{font-family:'Cinzel',serif;font-size:28px;font-weight:700;color:var(--red);letter-spacing:2px;}
+  .word-type{font-size:11px;color:var(--muted);font-style:italic;margin-top:2px;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;}
+  .word-meaning{font-size:15px;color:var(--ink);font-style:italic;margin-top:4px;border-top:1px solid var(--border);padding-top:10px;}
+  .word-examples{font-size:12px;color:var(--muted);margin-top:4px;}
+  .imposter-tag{font-size:13px;color:var(--muted);font-style:italic;margin-top:6px;}
+  .discuss-box{background:var(--parchment2);border:1px solid var(--border);border-radius:3px;padding:14px 16px;margin:10px 0;}
+  .discuss-q{font-size:14px;color:var(--ink);font-style:italic;line-height:1.5;}
+  .vote-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;}
+  .vote-btn{padding:10px 8px;text-align:center;background:var(--parchment2);border:1px solid var(--border);border-radius:3px;cursor:pointer;font-family:'Cinzel',serif;font-size:13px;color:var(--ink);transition:all 0.15s;}
+  .vote-btn:hover{background:rgba(184,134,11,0.15);border-color:var(--gold);}.vote-btn.selected{background:var(--red);color:#f5e6c8;border-color:var(--red);}
+  .vote-bar{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px;color:var(--ink);}
+  .vote-bar-name{min-width:80px;font-size:12px;}
+  .vote-bar-track{flex:1;height:8px;background:rgba(184,134,11,0.2);border-radius:4px;overflow:hidden;}
+  .vote-bar-fill{height:100%;background:var(--red);border-radius:4px;transition:width 0.4s;}
+  .vote-bar-count{min-width:20px;font-family:'Cinzel',serif;font-weight:600;font-size:13px;color:var(--red);}
+  .result-box{text-align:center;padding:16px;margin:10px 0;}
+  .result-emoji{font-size:36px;margin-bottom:8px;}
+  .result-title{font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:var(--ink);margin-bottom:6px;}
+  .result-sub{font-size:13px;color:var(--muted);font-style:italic;line-height:1.6;}
+  .info{font-size:13px;color:var(--muted);font-style:italic;text-align:center;padding:8px;}
+  .scroll-list{max-height:220px;overflow-y:auto;}
+  .tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid var(--border);}
+  .tab{padding:7px 16px;font-family:'Cinzel',serif;font-size:12px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:all 0.15s;}
+  .tab.active{color:var(--red);border-bottom-color:var(--red);}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0;}.status-dot.online{background:#3a9e3a;}
+  .level-select{display:flex;gap:8px;margin-bottom:12px;}
+  .level-btn{flex:1;padding:8px;text-align:center;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-family:'Cinzel',serif;font-size:12px;color:var(--muted);transition:all 0.15s;background:var(--parchment2);}
+  .level-btn.active{border-color:var(--gold);color:var(--ink);background:rgba(184,134,11,0.12);}
+  .loading{text-align:center;padding:60px 20px;font-style:italic;color:var(--muted);}
+  .spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:12px;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <span class="corner tl">❧</span><span class="corner tr">❧</span>
+  <span class="corner bl">❧</span><span class="corner br">❧</span>
+  <div class="scene" id="app"><div class="loading"><div class="spinner"></div><br>Connecting to the realm...</div></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, update, get, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// ─── FIREBASE CONFIG ─────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyDI6Lo5pMe1Zz51AFBz3rcbYbL10b9KOSg",
+  authDomain: "english-proyecto.firebaseapp.com",
+  databaseURL: "https://english-proyecto-default-rtdb.firebaseio.com",
+  projectId: "english-proyecto",
+  storageBucket: "english-proyecto.firebasestorage.app",
+  messagingSenderId: "1051864074064",
+  appId: "1:1051864074064:web:f653e1f936e6e53e3d4e55",
+  measurementId: "G-L8EJF1N1MG"
+};
+
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+
+// ─── WORD BANKS ──────────────────────────────────────────────────────────────
+const FRESHMAN=[
+  {word:"AB-/ABS-",type:"prefix",meaning:"off, away from, apart",examples:"abduct, abnormal"},
+  {word:"AD-",type:"prefix",meaning:"toward, in addition to",examples:"addict, addition"},
+  {word:"ANTE-",type:"prefix",meaning:"before",examples:"antecedent, antediluvian"},
+  {word:"ANTI-",type:"prefix",meaning:"against, opposite of",examples:"antifreeze, antagonist"},
+  {word:"AUTO-",type:"prefix",meaning:"self",examples:"autobiography, automatic"},
+  {word:"CENTI-",type:"prefix",meaning:"hundred",examples:"centimeter, centipede"},
+  {word:"CIRC-",type:"prefix",meaning:"circle, around",examples:"circumvent, circumlocution"},
+  {word:"COM-/CON-",type:"prefix",meaning:"with, together",examples:"community, concert"},
+  {word:"DE-",type:"prefix",meaning:"reduce, away, remove",examples:"depart, defrost"},
+  {word:"DIS-",type:"prefix",meaning:"opposite, not",examples:"disable, distant"},
+  {word:"HETERO-",type:"prefix",meaning:"different",examples:"heterodox, heterochromatic"},
+  {word:"HYPO-",type:"prefix",meaning:"too little, under",examples:"hypoactive, hypodermic"},
+  {word:"IM-/IN-",type:"prefix",meaning:"not, in",examples:"imperfect, indigenous"},
+  {word:"INTER-",type:"prefix",meaning:"between, jointly",examples:"interstate, interlocutor"},
+  {word:"INTRA-",type:"prefix",meaning:"within, inside",examples:"intramurals, intransigent"},
+  {word:"MICRO-",type:"prefix",meaning:"small, millionth",examples:"microbiologist, micron"},
+  {word:"MIS-",type:"prefix",meaning:"bad, hate, wrong",examples:"misogyny, mistake"},
+  {word:"MONO-",type:"prefix",meaning:"single, one",examples:"monotheism, monoculture"},
+  {word:"OMNI-",type:"prefix",meaning:"all, every",examples:"omniscient, omnibenevolent"},
+  {word:"PAN-",type:"prefix",meaning:"all, any, every",examples:"pandemic, pantheon"},
+  {word:"PER-",type:"prefix",meaning:"through",examples:"pervade, perceive"},
+  {word:"PERI-",type:"prefix",meaning:"around",examples:"periscope, perihelion"},
+  {word:"POLY-",type:"prefix",meaning:"many",examples:"polygon, polymorphous"},
+  {word:"POST-",type:"prefix",meaning:"after, behind",examples:"postpone, postpartum"},
+  {word:"PRE-",type:"prefix",meaning:"before",examples:"precede, precedent"},
+  {word:"PRO-",type:"prefix",meaning:"forward, before, in favor of",examples:"progress, propaganda"},
+  {word:"RETRO-",type:"prefix",meaning:"back, behind",examples:"retrogress, retrograde"},
+  {word:"SUB-/SUP-",type:"prefix",meaning:"under, lower than",examples:"submarine, submerge"},
+  {word:"SUPER-",type:"prefix",meaning:"above, more than",examples:"supermarket, supraliminal"},
+  {word:"SYM-/SYN-",type:"prefix",meaning:"together, with",examples:"symbiotic, symphony"},
+  {word:"ACT",type:"root",meaning:"do, act",examples:"action, proactive"},
+  {word:"AM/AMOR",type:"root",meaning:"love, like",examples:"amorous, paramour"},
+  {word:"ARCH",type:"root",meaning:"ruler, ancient",examples:"monarch, anarchy"},
+  {word:"ASTER/STEL",type:"root",meaning:"star",examples:"astronomy, stellar"},
+  {word:"AUDI/AUR",type:"root",meaning:"hear, listen",examples:"audible, aural"},
+  {word:"BENE",type:"root",meaning:"good, well",examples:"benefit, benevolence"},
+  {word:"BREV",type:"root",meaning:"short",examples:"brevity, abbreviate"},
+  {word:"CEED/CEDE",type:"root",meaning:"go, yield",examples:"proceed, process"},
+  {word:"CHRON",type:"root",meaning:"time",examples:"chronic, synchronic"},
+  {word:"CORP",type:"root",meaning:"body",examples:"corporeal, corpse"},
+  {word:"CRED",type:"root",meaning:"believe",examples:"creed, incredible"},
+  {word:"DI",type:"root",meaning:"two, double",examples:"divest, divulge"},
+  {word:"DIC/DICT",type:"root",meaning:"say, speak",examples:"dictionary, dictation"},
+  {word:"DUC/DUCT",type:"root",meaning:"lead, pull",examples:"abduct, induce"},
+  {word:"FER",type:"root",meaning:"carry, bear, bring",examples:"transfer, inference"},
+  {word:"FIX",type:"root",meaning:"repair, fasten",examples:"affix, suffix"},
+  {word:"GEN",type:"root",meaning:"birth, kind",examples:"generate, genuine"},
+  {word:"GEO",type:"root",meaning:"earth",examples:"geography, exogenous"},
+  {word:"GEST",type:"root",meaning:"carry, bring",examples:"gestation, suggest"},
+  {word:"GRAPH/GRAM",type:"root",meaning:"write, draw",examples:"graphic, telegram"},
+  {word:"HYDRO",type:"root",meaning:"water",examples:"hydrate, anhydrous"},
+  {word:"JUR/JUST",type:"root",meaning:"law",examples:"jury, jurisprudence"},
+  {word:"LOG/LOGUE",type:"root",meaning:"word, speech, study",examples:"dialogue, logician"},
+  {word:"LUC/LUM",type:"root",meaning:"light",examples:"lucid, luminous"},
+  {word:"MAGN",type:"root",meaning:"great",examples:"magnify, magnum"},
+  {word:"MANU/MAN",type:"root",meaning:"hand, make, do",examples:"manual, manipulate"},
+  {word:"METER/METR",type:"root",meaning:"measure",examples:"thermometer, metric"},
+  {word:"MIGR",type:"root",meaning:"move, wander",examples:"migrate, immigrant"},
+  {word:"NEG",type:"root",meaning:"no, none",examples:"negate, negative"},
+  {word:"NEO",type:"root",meaning:"new, recent",examples:"neonatology, neophyte"},
+  {word:"OCU",type:"root",meaning:"eye",examples:"ocular, inoculate"},
+  {word:"OLIG",type:"root",meaning:"few, little",examples:"oligarchy, oligopoly"},
+  {word:"ONYM",type:"root",meaning:"name",examples:"anonymous, pseudonym"},
+  {word:"OP/OPER",type:"root",meaning:"work",examples:"operate, optimal"},
+  {word:"PARA",type:"root",meaning:"beside, beyond, near",examples:"paramedic, parachute"},
+  {word:"PATH",type:"root",meaning:"feeling, disease",examples:"sympathy, pathology"},
+  {word:"PED/POD",type:"root",meaning:"child, foot",examples:"pediatrician, podiatrist"},
+  {word:"PHIL",type:"root",meaning:"love, friendship",examples:"philatelic, philologist"},
+  {word:"PHYS",type:"root",meaning:"body, nature",examples:"physical, physics"},
+  {word:"PROTO",type:"root",meaning:"first",examples:"prototype, protohuman"},
+  {word:"PSEUDO",type:"root",meaning:"false",examples:"pseudonym, pseudopod"},
+  {word:"SCRIB/SCRIPT",type:"root",meaning:"write",examples:"scribble, script"},
+  {word:"SECT/SEG",type:"root",meaning:"cut",examples:"dissect, insect"},
+  {word:"SEMBL/SIMIL",type:"root",meaning:"at the same time, together",examples:"semblance, resemble"},
+  {word:"SENT/SENS",type:"root",meaning:"feel, think",examples:"sensory, sentient"},
+  {word:"SOL",type:"root",meaning:"alone, sun",examples:"solitary, solar"},
+  {word:"SPEC/SPIC",type:"root",meaning:"look, see",examples:"spectator, conspicuous"},
+  {word:"STRUCT",type:"root",meaning:"build",examples:"construct, destruct"},
+  {word:"TACT/TANG",type:"root",meaning:"touch",examples:"contact, tactile"},
+  {word:"TELE/TEL",type:"root",meaning:"far off",examples:"telegraph, teleportation"},
+  {word:"TER/TERR",type:"root",meaning:"earth",examples:"territory, terra firma"},
+  {word:"TEST",type:"root",meaning:"to bear witness, affirm",examples:"testify, testament"},
+  {word:"THE/THEO",type:"root",meaning:"god",examples:"theology, theogony"},
+  {word:"TRACT",type:"root",meaning:"draw, pull, drag",examples:"subtract, retract"},
+  {word:"TRANS",type:"root",meaning:"beyond, through, across",examples:"transport, transcend"},
+  {word:"VER/VERI",type:"root",meaning:"true",examples:"verify, veridical"},
+  {word:"VERB",type:"root",meaning:"word",examples:"verbalize, verbiage"},
+  {word:"VID/VIS",type:"root",meaning:"see",examples:"video, visual"},
+  {word:"VOL",type:"root",meaning:"wish, will",examples:"voluntary, involute"},
+  {word:"SOLV/SOLU",type:"root",meaning:"to loosen, free",examples:"solvent, resolute, solution"},
+  {word:"-OUS/-IOUS",type:"suffix",meaning:"having quality of, relating to",examples:"courageous, verbose"},
+  {word:"-ABLE/-IBLE",type:"suffix",meaning:"able, can do",examples:"incredible, indelible"},
+  {word:"-ATE",type:"suffix",meaning:"cause to be, state of",examples:"create, procrastinate"},
+  {word:"-ER/-OR",type:"suffix",meaning:"one who, that which",examples:"painter, terminator"},
+  {word:"-IC",type:"suffix",meaning:"quality, relation",examples:"scientific, arctic"},
+  {word:"-ION",type:"suffix",meaning:"action, condition",examples:"preparation, question"},
+  {word:"-ISM",type:"suffix",meaning:"doctrine, belief",examples:"aphorism, nihilism"},
+  {word:"-ITY",type:"suffix",meaning:"state of, quality",examples:"productivity, amity"},
+  {word:"-LESS",type:"suffix",meaning:"without",examples:"careless, feckless"},
+  {word:"-OLOGY",type:"suffix",meaning:"study of, science of",examples:"biology, phenomenology"},
+];
+const SOPHOMORE=[
+  {word:"A-/AN-",type:"prefix",meaning:"without, not",examples:"anarchy, anachronism"},
+  {word:"AMBI-",type:"prefix",meaning:"both",examples:"ambidextrous, ambiguous"},
+  {word:"DIA-",type:"prefix",meaning:"across, through",examples:"diagonal, dialogue"},
+  {word:"DYS-",type:"prefix",meaning:"bad, wrong",examples:"dysfunctional, dystopia"},
+  {word:"EPI-",type:"prefix",meaning:"over, above, after",examples:"epidermis, epithet"},
+  {word:"EU-",type:"prefix",meaning:"good, well",examples:"euphony, euphoria"},
+  {word:"EXO-/EXTRA-",type:"prefix",meaning:"outside, beyond",examples:"exoskeleton, extrasolar"},
+  {word:"FRATER-",type:"prefix",meaning:"brother",examples:"fraternity, fratricide"},
+  {word:"HYPER-",type:"prefix",meaning:"a lot, over, too much",examples:"hyperactive, hyperthermia"},
+  {word:"INFRA-",type:"prefix",meaning:"beneath, below",examples:"infrastructure, infrared"},
+  {word:"MACRO-",type:"prefix",meaning:"large, great",examples:"macroeconomics, macrobiotic"},
+  {word:"META-",type:"prefix",meaning:"beyond, above, change",examples:"metamorphosis, metaphysics"},
+  {word:"OP-/OBS-",type:"prefix",meaning:"in the way, against",examples:"obstacle, obscure"},
+  {word:"UNI-",type:"prefix",meaning:"one, single",examples:"unify, unanimous"},
+  {word:"ACU",type:"root",meaning:"sharp",examples:"acute, acupuncture, accurate"},
+  {word:"ANIM",type:"root",meaning:"life, spirit",examples:"animate, animation"},
+  {word:"ANTHRO/ANDRO",type:"root",meaning:"human, masculine",examples:"anthropomorphic, androgen"},
+  {word:"AUG/AUC",type:"root",meaning:"increase, grow",examples:"augment, auction"},
+  {word:"BELL/BELLI",type:"root",meaning:"war",examples:"antebellum, rebellion"},
+  {word:"CAMP",type:"root",meaning:"field",examples:"campus, campaign"},
+  {word:"CAND/CEND",type:"root",meaning:"glowing",examples:"candle, incandescent"},
+  {word:"CANT/CHANT",type:"root",meaning:"say, sing",examples:"incantation, recant"},
+  {word:"CARN",type:"root",meaning:"flesh",examples:"carnivore, incarnate"},
+  {word:"CHLORO",type:"root",meaning:"green",examples:"chlorophyll"},
+  {word:"CHROM",type:"root",meaning:"color",examples:"chrome, chromosome"},
+  {word:"CIDE/CISE",type:"root",meaning:"cut, kill",examples:"homicide, scissors"},
+  {word:"CLAM/CLAIM",type:"root",meaning:"shout, speak out",examples:"acclaim, clamor"},
+  {word:"CLIN",type:"root",meaning:"lean, bend",examples:"incline, decline"},
+  {word:"CURS/COUR",type:"root",meaning:"to run, to go",examples:"excursion, discursive"},
+  {word:"CRACY/CRAT",type:"root",meaning:"rule",examples:"theocrat, technocracy"},
+  {word:"CRIT",type:"root",meaning:"judge, choose, separate",examples:"critical, criticism"},
+  {word:"CULP",type:"root",meaning:"blame, fault, guilt",examples:"culprit, culpable"},
+  {word:"DEM/DEMO",type:"root",meaning:"people",examples:"democratic, demagogue"},
+  {word:"DIGN",type:"root",meaning:"worthy",examples:"dignitary, indignant"},
+  {word:"DOL",type:"root",meaning:"pain",examples:"condolence, dolorous"},
+  {word:"DOMIN",type:"root",meaning:"master, house",examples:"dominate, domain"},
+  {word:"DORM",type:"root",meaning:"sleep",examples:"dormant, dormitory"},
+  {word:"DURA",type:"root",meaning:"hard, lasting",examples:"endure, duration"},
+  {word:"DYNA",type:"root",meaning:"power, energy",examples:"dynamo, dynamic"},
+  {word:"ENDO",type:"root",meaning:"within",examples:"endorse, endoscopic"},
+  {word:"ERR",type:"root",meaning:"stray",examples:"errant, aberration"},
+  {word:"FEND/FENS",type:"root",meaning:"strike",examples:"offend, defense"},
+  {word:"FID/FIDE",type:"root",meaning:"faith, trust",examples:"fidelity, confident"},
+  {word:"FIG",type:"root",meaning:"form, shape",examples:"effigy, figment"},
+  {word:"FLEX/FLECT",type:"root",meaning:"bend",examples:"genuflect, reflect"},
+  {word:"FLU/FLUX",type:"root",meaning:"flow",examples:"influx, confluence"},
+  {word:"FORT/FORC",type:"root",meaning:"strong, strength",examples:"fort, fortitude"},
+  {word:"FRACT/FRAG",type:"root",meaning:"break",examples:"fragile, fraction"},
+  {word:"FUS",type:"root",meaning:"to pour",examples:"profuse, confuse"},
+  {word:"GNO",type:"root",meaning:"know",examples:"agnostic, diagnose"},
+  {word:"GRAD/GRESS",type:"root",meaning:"step",examples:"gradual, egress"},
+  {word:"GRAT",type:"root",meaning:"pleasing",examples:"gratuity, ingrate"},
+  {word:"GYN",type:"root",meaning:"woman, female",examples:"gynecologist, misogyny"},
+  {word:"HERB",type:"root",meaning:"plant, grass",examples:"herbal, herbaceous"},
+  {word:"HERE/HES",type:"root",meaning:"stick",examples:"inherent, hereditary"},
+  {word:"HILAR",type:"root",meaning:"happy",examples:"hilarious, exhilarate"},
+  {word:"HOMO",type:"root",meaning:"same, alike",examples:"homogenous, homeostasis"},
+  {word:"JECT",type:"root",meaning:"throw",examples:"eject, interject"},
+  {word:"LEG",type:"root",meaning:"law, word",examples:"legislature, legitimize"},
+  {word:"LITER",type:"root",meaning:"letters",examples:"literary, alliteration"},
+  {word:"MAL",type:"root",meaning:"bad, ill, wrong",examples:"malediction, malevolent"},
+  {word:"MANIA",type:"root",meaning:"madness, insanity",examples:"kleptomaniac, pyromania"},
+  {word:"MATRI",type:"root",meaning:"mother",examples:"matrimony, matron"},
+  {word:"MIT/MISS",type:"root",meaning:"send, let go",examples:"emit, submit, mission"},
+  {word:"MORT",type:"root",meaning:"death",examples:"mortician, morbid"},
+  {word:"NOM",type:"root",meaning:"name, order",examples:"nominate, economy"},
+  {word:"NOV",type:"root",meaning:"new",examples:"novel, novelty, novice"},
+  {word:"NULL",type:"root",meaning:"none",examples:"nullify, null"},
+  {word:"ORTHO",type:"root",meaning:"straight, correct",examples:"orthodox, orthopedic"},
+  {word:"PAC",type:"root",meaning:"peace",examples:"pacifist, pact"},
+  {word:"PATER/PATR",type:"root",meaning:"father",examples:"paternity, patriarch"},
+  {word:"PEL/PULS",type:"root",meaning:"drive, urge",examples:"compel, expel, propel"},
+  {word:"PEND/PONS",type:"root",meaning:"hang, weigh",examples:"pendulum, pending"},
+  {word:"PET/PIT",type:"root",meaning:"attack, seek, ask",examples:"compete, impetus"},
+  {word:"PHOBIA/PHOB",type:"root",meaning:"fear",examples:"homophobia, xenophobia"},
+  {word:"PLAC/PLAIS",type:"root",meaning:"please, calm",examples:"placid, complacent"},
+  {word:"PORT",type:"root",meaning:"carry",examples:"transport, export, portable"},
+  {word:"PREHEN",type:"root",meaning:"seize, grasp",examples:"apprehend, prehensile"},
+  {word:"PSYCH",type:"root",meaning:"mind, soul",examples:"psychiatric, psychosis"},
+  {word:"QUIS/QUIR",type:"root",meaning:"request, ask",examples:"inquisitive, inquisition"},
+  {word:"RI/RIDI",type:"root",meaning:"laughter",examples:"ridiculous, derision"},
+  {word:"REG/RECT",type:"root",meaning:"straight, guide",examples:"rectangle, rectify"},
+  {word:"RUPT",type:"root",meaning:"burst, break",examples:"rupture, interrupt"},
+  {word:"SALU/SALV",type:"root",meaning:"safe, healthy",examples:"salutation, sanitize"},
+  {word:"SANCT/SACR",type:"root",meaning:"holy",examples:"sanctimony, sanction"},
+  {word:"SCI",type:"root",meaning:"know",examples:"conscientious, pseudoscience"},
+  {word:"SOPH",type:"root",meaning:"wise",examples:"sophomore, sophisticated"},
+  {word:"SPIR",type:"root",meaning:"breath, breathe",examples:"spirit, inspire"},
+  {word:"TEMPO",type:"root",meaning:"time",examples:"temporal, contemporary"},
+  {word:"TEND/TAIN",type:"root",meaning:"stretch, strain, hold",examples:"tensile, distend"},
+  {word:"TERM",type:"root",meaning:"end, define",examples:"terminate, determine"},
+  {word:"TORT/TORS",type:"root",meaning:"twist",examples:"torture, contort"},
+  {word:"TOX",type:"root",meaning:"poison",examples:"toxic, intoxicant"},
+  {word:"TREM",type:"root",meaning:"to shake",examples:"tremble, tremulous"},
+  {word:"UTIL",type:"root",meaning:"useful",examples:"utility, utilitarian"},
+  {word:"VEN/VENT",type:"root",meaning:"come",examples:"convene, prevent"},
+  {word:"VOC",type:"root",meaning:"call",examples:"revoke, convocation"},
+  {word:"VOLV",type:"root",meaning:"turn-about, roll",examples:"revolve, evolution"},
+  {word:"VOR",type:"root",meaning:"eat greedily",examples:"omnivorous, devour"},
+  {word:"PHAG/PHAGE",type:"root",meaning:"eat",examples:"bacteriophage, esophagus"},
+];
+const QUESTIONS=[
+  "What dost thou feel when thou encountereth thy word in the dead of night?",
+  "If thy word were a colour in the king's court, which would it be?",
+  "Describe thy word as thou wouldst to a blind monk.",
+  "What emotion doth thy word stir within thy breast?",
+  "In what season doth thy word feel most at home?",
+  "If thy word were a creature, what manner of beast would it be?",
+  "What sound doth thy word make in thy imagination?",
+  "How doth thy word relate to the affairs of the kingdom?",
+  "If thy word were a character in a play, what role would it hold?",
+  "What doth thy word smell like on a cold winter's morn?",
+  "Where in the castle might thy word be found?",
+  "If the king were to ban thy word, what would the kingdom lose?",
+  "What manner of food doth thy word remind thee of?",
+  "If thy word were a weapon, what kind would it be?",
+];
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let myId = localStorage.getItem('shx_uid') || ('p_'+Math.random().toString(36).slice(2,9));
+localStorage.setItem('shx_uid', myId);
+let myName = '', myRoom = '', view = 'home', selectedLevel = 'freshman';
+let unsubscribe = null, gameState = null;
+
+// ─── FIREBASE HELPERS ─────────────────────────────────────────────────────────
+function roomRef(path) {
+  return ref(database, path ? 'rooms/'+myRoom+'/'+path : 'rooms/'+myRoom);
+}
+
+function listenToRoom(code) {
+  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+  const r = ref(database, 'rooms/' + code);
+  unsubscribe = onValue(r, snap => {
+    const data = snap.val();
+    if (!data) { view = 'home'; gameState = null; render(); return; }
+    gameState = data;
+    const phaseMap = {lobby:'lobby',word:'word',discuss:'discuss',vote:'vote',results_round:'results',guess:'guess',final:'final'};
+    const newView = phaseMap[data.phase] || data.phase;
+    if (newView !== view) { view = newView; }
+    render();
+  });
+}
+
+function stopListening() {
+  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+  gameState = null;
+}
+
+async function updateGame(updates) {
+  await update(ref(database,'rooms/'+myRoom), updates);
+}
+
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function shuffleArr(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+function pickWord(level){const pool=level==='sophomore'?SOPHOMORE:level==='both'?[...FRESHMAN,...SOPHOMORE]:FRESHMAN;return pool[Math.floor(Math.random()*pool.length)];}
+function genCode(){let c='';while(c.length<5){c+=Math.random().toString(36).toUpperCase().replace(/[^A-Z]/g,'');}return c.slice(0,5);}
+function levelLabel(l){return l==='sophomore'?'Sophomore':l==='both'?'Both Lists':'Freshman';}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function render(){
+  const app=document.getElementById('app');
+  if(view==='home')app.innerHTML=homeView();
+  else if(view==='lobby')app.innerHTML=lobbyView();
+  else if(view==='word')app.innerHTML=wordView();
+  else if(view==='discuss')app.innerHTML=discussView();
+  else if(view==='vote')app.innerHTML=voteView();
+  else if(view==='results')app.innerHTML=resultsView();
+  else if(view==='guess')app.innerHTML=guessView();
+  else if(view==='final')app.innerHTML=finalView();
+}
+
+// ─── VIEWS ────────────────────────────────────────────────────────────────────
+function homeView(){return`<h1>The Imposter's Gambit</h1>
+  <p class="subtitle">"All the world's a stage, and all the players mere suspects..."</p>
+  <div class="divider"></div>
+  <div style="margin-bottom:12px">
+    <label style="font-size:13px;color:var(--muted);font-style:italic;display:block;margin-bottom:5px">Thy name, good player:</label>
+    <input type="text" id="nameInput" placeholder="e.g. Lord Bartholomew" maxlength="20" value="${myName}">
+  </div>
+  <div class="tabs">
+    <div class="tab active" id="tabCreate" onclick="switchTab('create')">Create Room</div>
+    <div class="tab" id="tabJoin" onclick="switchTab('join')">Join Room</div>
+  </div>
+  <div id="panelCreate">
+    <p style="font-size:13px;color:var(--muted);font-style:italic;margin-bottom:8px">Word list level:</p>
+    <div class="level-select">
+      <div class="level-btn ${selectedLevel==='freshman'?'active':''}" id="lvl-freshman" onclick="setLevel('freshman')">Freshman</div>
+      <div class="level-btn ${selectedLevel==='sophomore'?'active':''}" id="lvl-sophomore" onclick="setLevel('sophomore')">Sophomore</div>
+      <div class="level-btn ${selectedLevel==='both'?'active':''}" id="lvl-both" onclick="setLevel('both')">Both</div>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="createRoom()">⚔ Raise the Curtain</button>
+  </div>
+  <div id="panelJoin" style="display:none">
+    <label style="font-size:13px;color:var(--muted);font-style:italic;display:block;margin-bottom:5px">Room code:</label>
+    <input type="text" id="codeInput" placeholder="e.g. A3B7K" maxlength="5" style="text-transform:uppercase;letter-spacing:4px;font-family:'Cinzel',serif;font-size:18px;margin-bottom:10px">
+    <button class="btn btn-gold btn-full" onclick="joinRoom()">⚜ Enter the Stage</button>
+  </div>`;}
+
+function setLevel(l){selectedLevel=l;['freshman','sophomore','both'].forEach(x=>{const el=document.getElementById('lvl-'+x);if(el)el.className='level-btn'+(x===l?' active':'');});}
+
+function switchTab(t){
+  document.getElementById('tabCreate').className='tab'+(t==='create'?' active':'');
+  document.getElementById('tabJoin').className='tab'+(t==='join'?' active':'');
+  document.getElementById('panelCreate').style.display=t==='create'?'block':'none';
+  document.getElementById('panelJoin').style.display=t==='join'?'block':'none';
+}
+
+async function createRoom(){
+  myName=document.getElementById('nameInput').value.trim();
+  if(!myName){alert('Prithee, enter thy name!');return;}
+  const code=genCode(); myRoom=code;
+  const game={code,phase:'lobby',hostId:myId,wordObj:null,imposter:'',votes:{},eliminated:[],questions:[],qIdx:0,imposterGuess:'',imposterGotIt:false,imposterWon:false,level:selectedLevel,voteRequests:[],
+    players:{[myId]:{id:myId,name:myName,host:true,ready:false,alive:true,order:Date.now()}}};
+  await set(ref(database,'rooms/'+code), game);
+  listenToRoom(code);
+  view='lobby';
+}
+
+async function joinRoom(){
+  myName=document.getElementById('nameInput').value.trim();
+  if(!myName){alert('Prithee, enter thy name!');return;}
+  const code=document.getElementById('codeInput').value.trim().toUpperCase();
+  if(code.length<4){alert('Enter the full room code!');return;}
+  const snap=await get(ref(database,'rooms/'+code));
+  const game=snap.val();
+  if(!game){alert('No such room found in the realm! Check the code and try again.');return;}
+  if(game.phase!=='lobby'){alert('This game hath already begun!');return;}
+  const players=game.players||{};
+  if(Object.keys(players).length>=8){alert('The stage is full — no more than 8 players!');return;}
+  if(players[myId]){myRoom=code;listenToRoom(code);view='lobby';return;}
+  await set(ref(database,'rooms/'+code+'/players/'+myId),{id:myId,name:myName,host:false,ready:false,alive:true,order:Date.now()});
+  myRoom=code;listenToRoom(code);view='lobby';
+}
+
+function lobbyView(){
+  const game=gameState;if(!game)return'<p class="info">Loading...</p>';
+  const players=Object.values(game.players||{}).sort((a,b)=>a.order-b.order);
+  const me=players.find(p=>p.id===myId);
+  const isHost=me&&me.host;
+  const nonHostReady=players.filter(p=>!p.host).every(p=>p.ready);
+  const canStart=players.length>=3&&nonHostReady;
+  return`<h1>The Imposter's Gambit</h1>
+  <p class="subtitle" style="margin-bottom:12px">"Assemble, players — the play is nigh!"</p>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+    <h2 style="margin:0">Room Code</h2>
+    <span style="font-size:12px;color:var(--muted);font-style:italic">${players.length}/8 players</span>
+  </div>
+  <div class="room-code">${myRoom}</div>
+  <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px">
+    <span style="font-size:12px;color:var(--muted);font-style:italic">Share this code — works on any device!</span>
+    <span class="badge badge-${game.level==='sophomore'?'soph':'fresh'}">${levelLabel(game.level)}</span>
+  </div>
+  <div class="divider"></div>
+  <h2>Players on Stage</h2>
+  <ul class="player-list scroll-list">
+    ${players.map(p=>`<li>
+      <span class="status-dot online"></span>
+      <span style="flex:1;font-size:14px">${p.name}</span>
+      ${p.host?'<span class="badge badge-host">Host</span>':''}
+      ${p.id===myId?'<span class="badge badge-you">You</span>':''}
+      ${p.ready&&!p.host?'<span class="badge badge-ready">Ready</span>':''}
+    </li>`).join('')}
+  </ul>
+  <div class="divider"></div>
+  ${!isHost&&me&&!me.ready?`<button class="btn btn-gold btn-full" onclick="setReady()" style="margin-bottom:8px">✓ Mark Thyself Ready</button>`:''}
+  ${isHost?`<button class="btn btn-primary btn-full" ${canStart?'':'disabled'} onclick="startGame()" style="margin-bottom:8px">
+    ${canStart?'⚔ Begin the Performance!':'Awaiting players to ready up...'}</button>`
+  :`<p class="info">Awaiting the host to begin...</p>`}
+  <button class="btn btn-secondary btn-full" onclick="leaveGame()">Leave Stage</button>`;}
+
+async function setReady(){
+  await set(ref(database,'rooms/'+myRoom+'/players/'+myId+'/ready'), true);
+}
+
+async function startGame(){
+  const game=gameState;if(!game)return;
+  const players=Object.values(game.players||{});
+  if(players.length<3){alert('Need at least 3 players!');return;}
+  const wo=pickWord(game.level);
+  const ids=players.map(p=>p.id);
+  const imposter=ids[Math.floor(Math.random()*ids.length)];
+  const qs=shuffleArr([...QUESTIONS]).slice(0,Math.min(players.length+2,QUESTIONS.length));
+  const playerUpdates={};
+  players.forEach(p=>{playerUpdates[p.id]={...p,alive:true};});
+  await update(ref(database,'rooms/'+myRoom),{
+    wordObj:wo,imposter,phase:'word',questions:qs,qIdx:0,
+    votes:{},eliminated:[],imposterGuess:'',imposterGotIt:false,
+    imposterWon:false,voteRequests:[],players:playerUpdates
+  });
+}
+
+function wordView(){
+  const game=gameState;if(!game)return'';
+  const isImposter=game.imposter===myId;
+  const wo=game.wordObj||{word:'???',type:'root',meaning:'unknown',examples:''};
+  return`<h1>The Imposter's Gambit</h1>
+  <p class="subtitle" style="margin-bottom:16px">"Know thy role — conceal thy truth!"</p>
+  <div class="word-reveal">
+    <p class="word-label">${isImposter?'Thou art the IMPOSTER — thou knowest not the word!':'The secret word is...'}</p>
+    <div class="word-big">${isImposter?'???':wo.word}</div>
+    ${!isImposter?`<div class="word-type">${wo.type}</div>
+    <div class="word-meaning">"${wo.meaning}"</div>
+    <div class="word-examples">e.g. ${wo.examples}</div>`
+    :`<p class="imposter-tag">Blend in, deceive, survive.<br>If voted out — guess the word!</p>`}
+  </div>
+  <div class="discuss-box">
+    <p class="discuss-q">${isImposter
+      ?'"Listen to how others speak of the word — glean its meaning and blend in. If voted out, thou shalt have one chance to name it."'
+      :'"Memorise thy word and its meaning. Discuss only in allusions and riddles — never name the word directly!"'}</p>
+  </div>
+  <button class="btn btn-primary btn-full" onclick="goDiscuss()" style="margin-top:12px">⚔ Proceed to Discussion</button>`;}
+
+async function goDiscuss(){
+  if(gameState&&gameState.phase==='word') await updateGame({phase:'discuss'});
+}
+
+function discussView(){
+  const game=gameState;if(!game)return'';
+  const q=(game.questions||QUESTIONS)[game.qIdx||0];
+  const isHost=game.hostId===myId;
+  const players=shuffleArr(Object.values(game.players||{}).filter(p=>p.alive));
+  return`<h1>The Grand Discussion</h1>
+  <p class="subtitle" style="margin-bottom:14px">Question ${(game.qIdx||0)+1} of ${(game.questions||[]).length}</p>
+  <div class="discuss-box">
+    <p style="font-size:11px;color:var(--muted);font-style:italic;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Each player answers in turn:</p>
+    <p class="discuss-q">"${q}"</p>
+  </div>
+  <div style="margin:10px 0">
+    <p style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:6px">Speaking order:</p>
+    <ul class="player-list">
+      ${players.map((p,i)=>`<li>
+        <span style="font-family:'Cinzel',serif;font-size:11px;color:var(--gold);min-width:20px">${i+1}.</span>
+        <span style="flex:1">${p.name}</span>
+        ${p.id===myId?'<span class="badge badge-you">You</span>':''}
+      </li>`).join('')}
+    </ul>
+  </div>
+  <div class="divider"></div>
+  ${isHost?`<div style="display:flex;gap:8px">
+    ${(game.qIdx||0)>0?`<button class="btn btn-secondary" style="flex:1" onclick="prevQ()">← Prev</button>`:''}
+    ${(game.qIdx||0)<(game.questions||[]).length-1
+      ?`<button class="btn btn-gold" style="flex:1" onclick="nextQ()">Next →</button>`
+      :`<button class="btn btn-primary" style="flex:1" onclick="goVote()">⚔ Vote Now</button>`}
+  </div>`:`<p class="info">The host shall advance the questions...</p>
+  <button class="btn btn-secondary btn-full" onclick="forceVote()" style="margin-top:6px">Request Vote (majority needed)</button>`}`;
+}
+
+async function prevQ(){const game=gameState;if(!game)return;await updateGame({qIdx:Math.max(0,(game.qIdx||0)-1)});}
+async function nextQ(){const game=gameState;if(!game)return;await updateGame({qIdx:Math.min((game.questions||[]).length-1,(game.qIdx||0)+1)});}
+async function goVote(){await updateGame({phase:'vote',votes:{}});}
+async function forceVote(){
+  const game=gameState;if(!game)return;
+  const vr=[...(game.voteRequests||[])];
+  if(!vr.includes(myId))vr.push(myId);
+  const alive=Object.values(game.players||{}).filter(p=>p.alive).length;
+  if(vr.length>=Math.ceil(alive/2)){await updateGame({phase:'vote',votes:{},voteRequests:[]});}
+  else{await updateGame({voteRequests:vr});}
+}
+
+function voteView(){
+  const game=gameState;if(!game)return'';
+  const players=Object.values(game.players||{});
+  const alive=players.filter(p=>p.alive&&p.id!==myId);
+  const myVote=game.votes&&game.votes[myId];
+  const allVotes=game.votes||{};
+  const totalVotes=Object.keys(allVotes).length;
+  const totalAlive=players.filter(p=>p.alive).length;
+  const allVoted=totalVotes>=totalAlive;
+  let tallies={};
+  players.filter(p=>p.alive).forEach(p=>{tallies[p.id]=0;});
+  Object.values(allVotes).forEach(v=>{if(tallies[v]!==undefined)tallies[v]++;});
+  return`<h1>The Vote of Suspicion</h1>
+  <p class="subtitle" style="margin-bottom:12px">"Who among ye doth harbour the secret?"</p>
+  ${!myVote?`<p style="font-size:13px;color:var(--muted);font-style:italic;margin-bottom:8px">Cast thy vote — who is the imposter?</p>
+  <div class="vote-grid">${alive.map(p=>`<div class="vote-btn" onclick="castVote('${p.id}')">${p.name}</div>`).join('')}</div>`
+  :`<p class="info" style="margin-bottom:8px">Thy vote hath been cast. (${totalVotes}/${totalAlive})</p>`}
+  <div class="divider"></div>
+  <p style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:6px">Current tally:</p>
+  ${players.filter(p=>p.alive).map(p=>{const pct=totalVotes>0?Math.round(tallies[p.id]/totalVotes*100):0;return`<div class="vote-bar">
+    <span class="vote-bar-name">${p.name.split(' ')[0]}</span>
+    <div class="vote-bar-track"><div class="vote-bar-fill" style="width:${pct}%"></div></div>
+    <span class="vote-bar-count">${tallies[p.id]}</span>
+  </div>`;}).join('')}
+  ${allVoted&&game.hostId===myId?`<button class="btn btn-primary btn-full" onclick="revealVote()" style="margin-top:12px">⚔ Reveal the Verdict</button>`
+  :allVoted?`<p class="info" style="margin-top:8px">All voted! Waiting for host to reveal...</p>`
+  :`<p class="info" style="margin-top:8px">Awaiting ${totalAlive-totalVotes} more vote(s)...</p>`}`;}
+
+async function castVote(targetId){
+  const game=gameState;if(!game||game.votes&&game.votes[myId])return;
+  await set(ref(database,'rooms/'+myRoom+'/votes/'+myId), targetId);
+}
+
+async function revealVote(){
+  const game=gameState;if(!game)return;
+  const players=Object.values(game.players||{});
+  let tallies={};
+  players.filter(p=>p.alive).forEach(p=>{tallies[p.id]=0;});
+  Object.values(game.votes||{}).forEach(v=>{if(tallies[v]!==undefined)tallies[v]++;});
+  let maxV=0,eliminated=null;
+  Object.entries(tallies).forEach(([id,c])=>{if(c>maxV){maxV=c;eliminated=id;}});
+  if(!eliminated)eliminated=Object.keys(tallies)[0];
+  const newEliminated=[...(game.eliminated||[]),eliminated];
+  const playerUpdates={};
+  players.forEach(p=>{playerUpdates[p.id]={...p,alive:p.id!==eliminated};});
+  const nextPhase=eliminated===game.imposter?'guess':'results_round';
+  await updateGame({eliminated:newEliminated,lastEliminated:eliminated,phase:nextPhase,votes:{},players:playerUpdates});
+}
+
+function resultsView(){
+  const game=gameState;if(!game)return'';
+  const players=Object.values(game.players||{});
+  const lastElim=players.find(p=>p.id===game.lastEliminated);
+  return`<h1>The Verdict</h1>
+  <div class="result-box">
+    <div class="result-emoji">⚖️</div>
+    <p class="result-title">${lastElim?lastElim.name:'A player'} hath been cast out!</p>
+    <p class="result-sub">${game.lastEliminated===game.imposter?'The imposter is revealed!':'Yet... they were innocent. The true imposter still walks among thee!'}</p>
+  </div>
+  <div class="divider"></div>
+  ${game.hostId===myId?`<button class="btn btn-primary btn-full" onclick="continueAfterElim()">Continue the Game →</button>`:`<p class="info">Awaiting host to continue...</p>`}`;}
+
+async function continueAfterElim(){
+  const game=gameState;if(!game)return;
+  const alive=Object.values(game.players||{}).filter(p=>p.alive).length;
+  if(alive<=2){await updateGame({phase:'final',imposterWon:true});}
+  else{await updateGame({phase:'discuss',qIdx:0,voteRequests:[]});}
+}
+
+function guessView(){
+  const game=gameState;if(!game)return'';
+  const isImposter=game.imposter===myId;
+  const players=Object.values(game.players||{});
+  const imposterPlayer=players.find(p=>p.id===game.imposter);
+  const wo=game.wordObj||{};
+  return`<h1>The Final Gambit</h1>
+  <p class="subtitle" style="margin-bottom:14px">"The imposter is unmasked — but can they guess the word?"</p>
+  <div class="discuss-box">
+    <p class="discuss-q">"${imposterPlayer?imposterPlayer.name:'The imposter'} hath been voted out! If they can name the secret root or affix, glory shall be theirs!"</p>
+  </div>
+  ${!isImposter&&wo.type?`<div style="margin:10px 0;padding:10px 14px;background:var(--parchment2);border:1px solid var(--border);border-radius:3px;font-size:13px;color:var(--muted);font-style:italic">
+    The word was: <strong style="font-family:'Cinzel',serif;color:var(--red)">${wo.word}</strong> — meaning "${wo.meaning}"
+  </div>`:''}
+  <div class="divider"></div>
+  ${isImposter?`<p style="font-size:13px;color:var(--muted);font-style:italic;margin-bottom:4px">Clue — the word is a <strong style="color:var(--ink)">${wo.type||'root/prefix/suffix'}</strong>.</p>
+    <label style="font-size:13px;color:var(--muted);font-style:italic;display:block;margin-bottom:6px;margin-top:8px">Thy guess:</label>
+    <input type="text" id="guessInput" placeholder="Name the root, prefix, or suffix..." maxlength="40" style="margin-bottom:10px">
+    <button class="btn btn-primary btn-full" onclick="submitGuess()">⚔ Submit My Guess</button>`
+  :`<p class="info">${imposterPlayer?imposterPlayer.name:'The imposter'} is making their guess...</p>`}`;}
+
+async function submitGuess(){
+  const game=gameState;if(!game)return;
+  const guess=document.getElementById('guessInput').value.trim();
+  if(!guess)return;
+  const wo=game.wordObj||{};
+  const got=guess.toLowerCase()===wo.word.toLowerCase();
+  await updateGame({imposterGuess:guess,imposterGotIt:got,imposterWon:false,phase:'final'});
+}
+
+function finalView(){
+  const game=gameState;if(!game)return'';
+  const players=Object.values(game.players||{});
+  const imposterPlayer=players.find(p=>p.id===game.imposter);
+  const wo=game.wordObj||{word:'???',type:'root',meaning:'',examples:''};
+  let titleText,subText,emoji;
+  if(game.imposterWon){emoji='🎭';titleText='The Imposter Hath Won!';subText=`${imposterPlayer?imposterPlayer.name:'The imposter'} survived to the end, never unmasked!`;}
+  else if(game.imposterGotIt){emoji='🎉';titleText='A Bittersweet Victory!';subText=`The imposter ${imposterPlayer?imposterPlayer.name:''} was unmasked, yet guessed the word correctly! Honours are shared!`;}
+  else{emoji='⚔';titleText='The Townsfolk Triumph!';subText=`The imposter guessed "${game.imposterGuess||'nothing'}" — wrong! Justice prevails!`;}
+  return`<h1>The Final Curtain</h1>
+  <p class="subtitle" style="margin-bottom:12px">"The play is done — what fate hath been wrought?"</p>
+  <div class="result-box">
+    <div class="result-emoji">${emoji}</div>
+    <p class="result-title">${titleText}</p>
+    <p class="result-sub">${subText}</p>
+  </div>
+  <div class="word-reveal" style="margin:0 0 12px">
+    <p class="word-label">The secret word was...</p>
+    <div class="word-big">${wo.word}</div>
+    <div class="word-type">${wo.type}</div>
+    <div class="word-meaning">"${wo.meaning}"</div>
+    <div class="word-examples">e.g. ${wo.examples}</div>
+  </div>
+  <h2>The Players</h2>
+  <ul class="player-list" style="margin-bottom:14px">
+    ${players.map(p=>`<li>
+      <span style="font-size:15px">${p.id===game.imposter?'🎭':'👑'}</span>
+      <span style="flex:1">${p.name}</span>
+      <span style="font-size:12px;color:var(--muted);font-style:italic">${p.id===game.imposter?'The Imposter':'Townsfolk'}</span>
+    </li>`).join('')}
+  </ul>
+  ${game.hostId===myId?`<button class="btn btn-primary btn-full" onclick="playAgain()" style="margin-bottom:8px">⚔ Play Again</button>`:''}
+  <button class="btn btn-secondary btn-full" onclick="leaveGame()">Leave Stage</button>`;}
+
+async function playAgain(){
+  const game=gameState;if(!game)return;
+  const players={};
+  Object.values(game.players||{}).forEach(p=>{players[p.id]={...p,ready:false,alive:true};});
+  await updateGame({phase:'lobby',players,wordObj:null,imposter:'',votes:{},eliminated:[],imposterGuess:'',imposterGotIt:false,imposterWon:false,voteRequests:[]});
+}
+
+async function leaveGame(){
+  if(myRoom){
+    const snap=await get(ref(database,'rooms/'+myRoom+'/players'));
+    const players=snap.val()||{};
+    delete players[myId];
+    if(Object.keys(players).length===0){
+      await remove(ref(database,'rooms/'+myRoom));
+    } else {
+      if(gameState&&gameState.hostId===myId){
+        const first=Object.values(players).sort((a,b)=>a.order-b.order)[0];
+        if(first){players[first.id].host=true;await update(ref(database,'rooms/'+myRoom),{players,hostId:first.id});}
+      } else {
+        await remove(ref(database,'rooms/'+myRoom+'/players/'+myId));
+      }
+    }
+  }
+  stopListening();myRoom='';view='home';gameState=null;render();
+}
+
+// Expose all functions to window so onclick handlers work inside type="module"
+Object.assign(window, {
+  switchTab, setLevel, createRoom, joinRoom, setReady, startGame,
+  goDiscuss, prevQ, nextQ, goVote, forceVote, castVote, revealVote,
+  continueAfterElim, submitGuess, playAgain, leaveGame
+});
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
