@@ -519,7 +519,7 @@ async function startGame(){
 function wordView(){
   const game=gameState;if(!game)return'';
   const isImposter=game.imposter===myId;
-
+  const wo=game.wordObj||{word:'???',type:'root',meaning:'unknown',examples:''};
   return`<h1>The Imposter's Gambit</h1>
   <p class="subtitle" style="margin-bottom:16px">"Know thy role — conceal thy truth!"</p>
   <div class="word-reveal">
