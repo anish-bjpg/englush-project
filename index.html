@@ -45,6 +45,11 @@
   .word-meaning{font-size:15px;color:var(--ink);font-style:italic;margin-top:4px;border-top:1px solid var(--border);padding-top:10px;}
   .word-examples{font-size:12px;color:var(--muted);margin-top:4px;}
   .imposter-tag{font-size:13px;color:var(--muted);font-style:italic;margin-top:6px;}
+  /* Imposter hint box */
+  .hint-box{background:rgba(139,26,26,0.08);border:1px solid rgba(139,26,26,0.3);border-radius:4px;padding:12px 16px;margin:10px 0;text-align:center;}
+  .hint-label{font-size:11px;color:var(--red);font-style:italic;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+  .hint-value{font-family:'Cinzel',serif;font-size:16px;font-weight:600;color:var(--ink);}
+  .hint-sub{font-size:12px;color:var(--muted);font-style:italic;margin-top:4px;}
   .discuss-box{background:var(--parchment2);border:1px solid var(--border);border-radius:3px;padding:14px 16px;margin:10px 0;}
   .discuss-q{font-size:14px;color:var(--ink);font-style:italic;line-height:1.5;}
   .vote-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;}
@@ -321,6 +326,8 @@ const QUESTIONS=[
   "If thy word were a weapon, what kind would it be?",
 ];
 
+
+
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let myId = localStorage.getItem('shx_uid') || ('p_'+Math.random().toString(36).slice(2,9));
 localStorage.setItem('shx_uid', myId);
@@ -355,9 +362,21 @@ async function updateGame(updates) {
   await update(ref(database,'rooms/'+myRoom), updates);
 }
 
-
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function shuffleArr(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+
+// Seeded shuffle so all clients get same order from same seed
+function seededShuffle(arr, seed) {
+  const a = [...arr];
+  let s = seed;
+  for (let i = a.length - 1; i > 0; i--) {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    const j = Math.abs(s) % (i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 function pickWord(level){const pool=level==='sophomore'?SOPHOMORE:level==='both'?[...FRESHMAN,...SOPHOMORE]:FRESHMAN;return pool[Math.floor(Math.random()*pool.length)];}
 function genCode(){let c='';while(c.length<5){c+=Math.random().toString(36).toUpperCase().replace(/[^A-Z]/g,'');}return c.slice(0,5);}
 function levelLabel(l){return l==='sophomore'?'Sophomore':l==='both'?'Both Lists':'Freshman';}
@@ -415,7 +434,7 @@ async function createRoom(){
   myName=document.getElementById('nameInput').value.trim();
   if(!myName){alert('Prithee, enter thy name!');return;}
   const code=genCode(); myRoom=code;
-  const game={code,phase:'lobby',hostId:myId,wordObj:null,imposter:'',votes:{},eliminated:[],questions:[],qIdx:0,imposterGuess:'',imposterGotIt:false,imposterWon:false,level:selectedLevel,voteRequests:[],
+  const game={code,phase:'lobby',hostId:myId,wordObj:null,imposter:'',votes:{},eliminated:[],questions:[],qIdx:0,imposterGuess:'',imposterGotIt:false,imposterWon:false,level:selectedLevel,voteRequests:[],speakSeed:0,
     players:{[myId]:{id:myId,name:myName,host:true,ready:false,alive:true,order:Date.now()}}};
   await set(ref(database,'rooms/'+code), game);
   listenToRoom(code);
@@ -486,19 +505,21 @@ async function startGame(){
   const ids=players.map(p=>p.id);
   const imposter=ids[Math.floor(Math.random()*ids.length)];
   const qs=shuffleArr([...QUESTIONS]).slice(0,Math.min(players.length+2,QUESTIONS.length));
+  // Generate a seed for deterministic speaking order — all clients use same seed
+  const speakSeed = Math.floor(Math.random() * 0x7fffffff);
   const playerUpdates={};
   players.forEach(p=>{playerUpdates[p.id]={...p,alive:true};});
   await update(ref(database,'rooms/'+myRoom),{
     wordObj:wo,imposter,phase:'word',questions:qs,qIdx:0,
     votes:{},eliminated:[],imposterGuess:'',imposterGotIt:false,
-    imposterWon:false,voteRequests:[],players:playerUpdates
+    imposterWon:false,voteRequests:[],speakSeed,players:playerUpdates
   });
 }
 
 function wordView(){
   const game=gameState;if(!game)return'';
   const isImposter=game.imposter===myId;
-  const wo=game.wordObj||{word:'???',type:'root',meaning:'unknown',examples:''};
+
   return`<h1>The Imposter's Gambit</h1>
   <p class="subtitle" style="margin-bottom:16px">"Know thy role — conceal thy truth!"</p>
   <div class="word-reveal">
@@ -509,9 +530,15 @@ function wordView(){
     <div class="word-examples">e.g. ${wo.examples}</div>`
     :`<p class="imposter-tag">Blend in, deceive, survive.<br>If voted out — guess the word!</p>`}
   </div>
+  ${isImposter?`
+  <div class="hint-box">
+    <div class="hint-label">🕵 Thy Secret Clue</div>
+    <div class="hint-value">${wo.type.toUpperCase()} — "${wo.meaning}"</div>
+    <div class="hint-sub" style="margin-top:4px">e.g. ${wo.examples}</div>
+  </div>`:''}
   <div class="discuss-box">
     <p class="discuss-q">${isImposter
-      ?'"Listen to how others speak of the word — glean its meaning and blend in. If voted out, thou shalt have one chance to name it."'
+      ?'"Use thy clue wisely — thou knowest the type but not the word. Listen to how others speak and blend in. If voted out, name the word to steal victory!"'
       :'"Memorise thy word and its meaning. Discuss only in allusions and riddles — never name the word directly!"'}</p>
   </div>
   <button class="btn btn-primary btn-full" onclick="goDiscuss()" style="margin-top:12px">⚔ Proceed to Discussion</button>`;}
@@ -520,9 +547,17 @@ async function goDiscuss(){
   if(gameState&&gameState.phase==='word') await updateGame({phase:'discuss'});
 }
 
+function getSpeakOrder(game) {
+  // Use the stored seed so all clients get identical order
+  const seed = game.speakSeed || 1;
+  const alive = Object.values(game.players||{}).filter(p=>p.alive);
+  return seededShuffle(alive, seed);
+}
+
 function discussView(){
   const game=gameState;if(!game)return'';
-  const players=shuffleArr(Object.values(game.players||{}).filter(p=>p.alive));
+  // Use seeded shuffle for consistent order across all devices
+  const players = getSpeakOrder(game);
   return`<h1>The Grand Discussion</h1>
   <p class="subtitle" style="margin-bottom:16px">"Speak wisely — the imposter lurks among thee!"</p>
   <div class="discuss-box">
@@ -615,8 +650,10 @@ function resultsView(){
 async function continueAfterElim(){
   const game=gameState;if(!game)return;
   const alive=Object.values(game.players||{}).filter(p=>p.alive).length;
+  // Generate new seed for next round's speaking order
+  const newSeed = Math.floor(Math.random() * 0x7fffffff);
   if(alive<=2){await updateGame({phase:'final',imposterWon:true});}
-  else{await updateGame({phase:'discuss',qIdx:0,voteRequests:[]});}
+  else{await updateGame({phase:'discuss',qIdx:0,voteRequests:[],speakSeed:newSeed});}
 }
 
 function guessView(){
@@ -687,7 +724,7 @@ async function playAgain(){
   const game=gameState;if(!game)return;
   const players={};
   Object.values(game.players||{}).forEach(p=>{players[p.id]={...p,ready:false,alive:true};});
-  await updateGame({phase:'lobby',players,wordObj:null,imposter:'',votes:{},eliminated:[],imposterGuess:'',imposterGotIt:false,imposterWon:false,voteRequests:[]});
+  await updateGame({phase:'lobby',players,wordObj:null,imposter:'',votes:{},eliminated:[],imposterGuess:'',imposterGotIt:false,imposterWon:false,voteRequests:[],speakSeed:0});
 }
 
 async function leaveGame(){
