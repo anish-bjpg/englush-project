@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Imposter's Gambit — A Shakespearean Word Game</title>
-
+ 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -84,11 +84,11 @@
   <span class="corner bl">❧</span><span class="corner br">❧</span>
   <div class="scene" id="app"><div class="loading"><div class="spinner"></div><br>Connecting to the realm...</div></div>
 </div>
-
+ 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, update, get, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
+ 
 // ─── FIREBASE CONFIG ─────────────────────────────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyDI6Lo5pMe1Zz51AFBz3rcbYbL10b9KOSg",
@@ -100,10 +100,10 @@ const firebaseConfig = {
   appId: "1:1051864074064:web:f653e1f936e6e53e3d4e55",
   measurementId: "G-L8EJF1N1MG"
 };
-
+ 
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
-
+ 
 // ─── WORD BANKS ──────────────────────────────────────────────────────────────
 const FRESHMAN=[
   {word:"AB-/ABS-",type:"prefix",meaning:"off, away from, apart",examples:"abduct, abnormal"},
@@ -325,20 +325,20 @@ const QUESTIONS=[
   "What manner of food doth thy word remind thee of?",
   "If thy word were a weapon, what kind would it be?",
 ];
-
-
-
+ 
+ 
+ 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let myId = localStorage.getItem('shx_uid') || ('p_'+Math.random().toString(36).slice(2,9));
 localStorage.setItem('shx_uid', myId);
 let myName = '', myRoom = '', view = 'home', selectedLevel = 'freshman';
 let unsubscribe = null, gameState = null;
-
+ 
 // ─── FIREBASE HELPERS ─────────────────────────────────────────────────────────
 function roomRef(path) {
   return ref(database, path ? 'rooms/'+myRoom+'/'+path : 'rooms/'+myRoom);
 }
-
+ 
 function listenToRoom(code) {
   if (unsubscribe) { unsubscribe(); unsubscribe = null; }
   const r = ref(database, 'rooms/' + code);
@@ -352,19 +352,19 @@ function listenToRoom(code) {
     render();
   });
 }
-
+ 
 function stopListening() {
   if (unsubscribe) { unsubscribe(); unsubscribe = null; }
   gameState = null;
 }
-
+ 
 async function updateGame(updates) {
   await update(ref(database,'rooms/'+myRoom), updates);
 }
-
+ 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function shuffleArr(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
-
+ 
 // Seeded shuffle so all clients get same order from same seed
 function seededShuffle(arr, seed) {
   const a = [...arr];
@@ -376,11 +376,11 @@ function seededShuffle(arr, seed) {
   }
   return a;
 }
-
+ 
 function pickWord(level){const pool=level==='sophomore'?SOPHOMORE:level==='both'?[...FRESHMAN,...SOPHOMORE]:FRESHMAN;return pool[Math.floor(Math.random()*pool.length)];}
 function genCode(){let c='';while(c.length<5){c+=Math.random().toString(36).toUpperCase().replace(/[^A-Z]/g,'');}return c.slice(0,5);}
 function levelLabel(l){return l==='sophomore'?'Sophomore':l==='both'?'Both Lists':'Freshman';}
-
+ 
 // ─── RENDER ───────────────────────────────────────────────────────────────────
 function render(){
   const app=document.getElementById('app');
@@ -393,7 +393,7 @@ function render(){
   else if(view==='guess')app.innerHTML=guessView();
   else if(view==='final')app.innerHTML=finalView();
 }
-
+ 
 // ─── VIEWS ────────────────────────────────────────────────────────────────────
 function homeView(){return`<h1>The Imposter's Gambit</h1>
   <p class="subtitle">"All the world's a stage, and all the players mere suspects..."</p>
@@ -420,16 +420,16 @@ function homeView(){return`<h1>The Imposter's Gambit</h1>
     <input type="text" id="codeInput" placeholder="e.g. A3B7K" maxlength="5" style="text-transform:uppercase;letter-spacing:4px;font-family:'Cinzel',serif;font-size:18px;margin-bottom:10px">
     <button class="btn btn-gold btn-full" onclick="joinRoom()">⚜ Enter the Stage</button>
   </div>`;}
-
+ 
 function setLevel(l){selectedLevel=l;['freshman','sophomore','both'].forEach(x=>{const el=document.getElementById('lvl-'+x);if(el)el.className='level-btn'+(x===l?' active':'');});}
-
+ 
 function switchTab(t){
   document.getElementById('tabCreate').className='tab'+(t==='create'?' active':'');
   document.getElementById('tabJoin').className='tab'+(t==='join'?' active':'');
   document.getElementById('panelCreate').style.display=t==='create'?'block':'none';
   document.getElementById('panelJoin').style.display=t==='join'?'block':'none';
 }
-
+ 
 async function createRoom(){
   myName=document.getElementById('nameInput').value.trim();
   if(!myName){alert('Prithee, enter thy name!');return;}
@@ -440,7 +440,7 @@ async function createRoom(){
   listenToRoom(code);
   view='lobby';
 }
-
+ 
 async function joinRoom(){
   myName=document.getElementById('nameInput').value.trim();
   if(!myName){alert('Prithee, enter thy name!');return;}
@@ -456,7 +456,7 @@ async function joinRoom(){
   await set(ref(database,'rooms/'+code+'/players/'+myId),{id:myId,name:myName,host:false,ready:false,alive:true,order:Date.now()});
   myRoom=code;listenToRoom(code);view='lobby';
 }
-
+ 
 function lobbyView(){
   const game=gameState;if(!game)return'<p class="info">Loading...</p>';
   const players=Object.values(game.players||{}).sort((a,b)=>a.order-b.order);
@@ -492,30 +492,31 @@ function lobbyView(){
     ${canStart?'⚔ Begin the Performance!':'Awaiting players to ready up...'}</button>`
   :`<p class="info">Awaiting the host to begin...</p>`}
   <button class="btn btn-secondary btn-full" onclick="leaveGame()">Leave Stage</button>`;}
-
+ 
 async function setReady(){
   await set(ref(database,'rooms/'+myRoom+'/players/'+myId+'/ready'), true);
 }
-
+ 
 async function startGame(){
   const game=gameState;if(!game)return;
   const players=Object.values(game.players||{});
   if(players.length<3){alert('Need at least 3 players!');return;}
-  const wo=pickWord(game.level);
+  const wo=pickWord(game.level||'freshman');
   const ids=players.map(p=>p.id);
   const imposter=ids[Math.floor(Math.random()*ids.length)];
   const qs=shuffleArr([...QUESTIONS]).slice(0,Math.min(players.length+2,QUESTIONS.length));
-  // Generate a seed for deterministic speaking order — all clients use same seed
-  const speakSeed = Math.floor(Math.random() * 0x7fffffff);
+  const speakSeed=Math.floor(Math.random()*0x7fffffff);
   const playerUpdates={};
   players.forEach(p=>{playerUpdates[p.id]={...p,alive:true};});
-  await update(ref(database,'rooms/'+myRoom),{
-    wordObj:wo,imposter,phase:'word',questions:qs,qIdx:0,
-    votes:{},eliminated:[],imposterGuess:'',imposterGotIt:false,
-    imposterWon:false,voteRequests:[],speakSeed,players:playerUpdates
-  });
+  try{
+    await update(ref(database,'rooms/'+myRoom),{
+      wordObj:wo,imposter,phase:'word',questions:qs,qIdx:0,
+      votes:null,eliminated:null,imposterGuess:'',imposterGotIt:false,
+      imposterWon:false,voteRequests:null,speakSeed,wasTied:false,players:playerUpdates
+    });
+  }catch(e){alert('Failed to start: '+e.message);console.error(e);}
 }
-
+ 
 function wordView(){
   const game=gameState;if(!game)return'';
   const isImposter=game.imposter===myId;
@@ -542,18 +543,18 @@ function wordView(){
       :'"Memorise thy word and its meaning. Discuss only in allusions and riddles — never name the word directly!"'}</p>
   </div>
   <button class="btn btn-primary btn-full" onclick="goDiscuss()" style="margin-top:12px">⚔ Proceed to Discussion</button>`;}
-
+ 
 async function goDiscuss(){
   if(gameState&&gameState.phase==='word') await updateGame({phase:'discuss'});
 }
-
+ 
 function getSpeakOrder(game) {
   // Use the stored seed so all clients get identical order
   const seed = game.speakSeed || 1;
   const alive = Object.values(game.players||{}).filter(p=>p.alive);
   return seededShuffle(alive, seed);
 }
-
+ 
 function discussView(){
   const game=gameState;if(!game)return'';
   // Use seeded shuffle for consistent order across all devices
@@ -573,9 +574,9 @@ function discussView(){
   <p style="font-size:13px;color:var(--muted);font-style:italic;text-align:center;margin:12px 0">Discuss freely — when ready, anyone may call a vote.</p>
   <div class="divider"></div>
   <button class="btn btn-primary btn-full" onclick="forceVote()">⚔ Call a Vote</button>`;}
-
+ 
 async function prevQ(){} async function nextQ(){}
-async function goVote(){await updateGame({phase:'vote',votes:{}});}
+async function goVote(){await updateGame({phase:'vote',votes:null});}
 async function forceVote(){
   const game=gameState;if(!game)return;
   const vr=[...(game.voteRequests||[])];
@@ -584,7 +585,7 @@ async function forceVote(){
   if(vr.length>=Math.ceil(alive/2)){await updateGame({phase:'vote',votes:{},voteRequests:[]});}
   else{await updateGame({voteRequests:vr,phase:'discuss'});alert(`Vote requested! ${vr.length}/${Math.ceil(alive/2)} needed to proceed.`);}
 }
-
+ 
 function voteView(){
   const game=gameState;if(!game)return'';
   const players=Object.values(game.players||{});
@@ -612,12 +613,12 @@ function voteView(){
   ${allVoted&&game.hostId===myId?`<button class="btn btn-primary btn-full" onclick="revealVote()" style="margin-top:12px">⚔ Reveal the Verdict</button>`
   :allVoted?`<p class="info" style="margin-top:8px">All voted! Waiting for host to reveal...</p>`
   :`<p class="info" style="margin-top:8px">Awaiting ${totalAlive-totalVotes} more vote(s)...</p>`}`;}
-
+ 
 async function castVote(targetId){
   const game=gameState;if(!game||game.votes&&game.votes[myId])return;
   await set(ref(database,'rooms/'+myRoom+'/votes/'+myId), targetId);
 }
-
+ 
 async function revealVote(){
   const game=gameState;if(!game)return;
   const players=Object.values(game.players||{});
@@ -635,7 +636,7 @@ async function revealVote(){
   const nextPhase=eliminated===game.imposter?'guess':'results_round';
   await updateGame({eliminated:newEliminated,lastEliminated:eliminated,wasTied,phase:nextPhase,votes:{},players:playerUpdates});
 }
-
+ 
 function resultsView(){
   const game=gameState;if(!game)return'';
   const players=Object.values(game.players||{});
@@ -648,7 +649,7 @@ function resultsView(){
   </div>
   <div class="divider"></div>
   ${game.hostId===myId?`<button class="btn btn-primary btn-full" onclick="continueAfterElim()">Continue the Game →</button>`:`<p class="info">Awaiting host to continue...</p>`}`;}
-
+ 
 async function continueAfterElim(){
   const game=gameState;if(!game)return;
   const alive=Object.values(game.players||{}).filter(p=>p.alive).length;
@@ -657,7 +658,7 @@ async function continueAfterElim(){
   if(alive<=2){await updateGame({phase:'final',imposterWon:true});}
   else{await updateGame({phase:'discuss',qIdx:0,voteRequests:[],speakSeed:newSeed});}
 }
-
+ 
 function guessView(){
   const game=gameState;if(!game)return'';
   const isImposter=game.imposter===myId;
@@ -678,7 +679,7 @@ function guessView(){
     <input type="text" id="guessInput" placeholder="Name the root, prefix, or suffix..." maxlength="40" style="margin-bottom:10px">
     <button class="btn btn-primary btn-full" onclick="submitGuess()">⚔ Submit My Guess</button>`
   :`<p class="info">${imposterPlayer?imposterPlayer.name:'The imposter'} is making their guess...</p>`}`;}
-
+ 
 async function submitGuess(){
   const game=gameState;if(!game)return;
   const guess=document.getElementById('guessInput').value.trim();
@@ -687,7 +688,7 @@ async function submitGuess(){
   const got=guess.toLowerCase()===wo.word.toLowerCase();
   await updateGame({imposterGuess:guess,imposterGotIt:got,imposterWon:false,phase:'final'});
 }
-
+ 
 function finalView(){
   const game=gameState;if(!game)return'';
   const players=Object.values(game.players||{});
@@ -721,14 +722,14 @@ function finalView(){
   </ul>
   ${game.hostId===myId?`<button class="btn btn-primary btn-full" onclick="playAgain()" style="margin-bottom:8px">⚔ Play Again</button>`:''}
   <button class="btn btn-secondary btn-full" onclick="leaveGame()">Leave Stage</button>`;}
-
+ 
 async function playAgain(){
   const game=gameState;if(!game)return;
   const players={};
   Object.values(game.players||{}).forEach(p=>{players[p.id]={...p,ready:false,alive:true};});
-  await updateGame({phase:'lobby',players,wordObj:null,imposter:'',votes:{},eliminated:[],imposterGuess:'',imposterGotIt:false,imposterWon:false,voteRequests:[],speakSeed:0});
+  await updateGame({phase:'lobby',players,wordObj:null,imposter:'',votes:null,eliminated:null,imposterGuess:'',imposterGotIt:false,imposterWon:false,voteRequests:null,speakSeed:0,wasTied:false});
 }
-
+ 
 async function leaveGame(){
   if(myRoom){
     const snap=await get(ref(database,'rooms/'+myRoom+'/players'));
@@ -747,14 +748,14 @@ async function leaveGame(){
   }
   stopListening();myRoom='';view='home';gameState=null;render();
 }
-
+ 
 // Expose all functions to window so onclick handlers work inside type="module"
 Object.assign(window, {
   switchTab, setLevel, createRoom, joinRoom, setReady, startGame,
   goDiscuss, prevQ, nextQ, goVote, forceVote, castVote, revealVote,
   continueAfterElim, submitGuess, playAgain, leaveGame
 });
-
+ 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 render();
 </script>
