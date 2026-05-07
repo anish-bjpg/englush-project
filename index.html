@@ -624,14 +624,16 @@ async function revealVote(){
   let tallies={};
   players.filter(p=>p.alive).forEach(p=>{tallies[p.id]=0;});
   Object.values(game.votes||{}).forEach(v=>{if(tallies[v]!==undefined)tallies[v]++;});
-  let maxV=0,eliminated=null;
-  Object.entries(tallies).forEach(([id,c])=>{if(c>maxV){maxV=c;eliminated=id;}});
-  if(!eliminated)eliminated=Object.keys(tallies)[0];
+  let maxV=0;
+  Object.values(tallies).forEach(c=>{if(c>maxV)maxV=c;});
+  const tied=Object.entries(tallies).filter(([,c])=>c===maxV).map(([id])=>id);
+  const eliminated=tied[Math.floor(Math.random()*tied.length)];
+  const wasTied=tied.length>1;
   const newEliminated=[...(game.eliminated||[]),eliminated];
   const playerUpdates={};
   players.forEach(p=>{playerUpdates[p.id]={...p,alive:p.id!==eliminated};});
   const nextPhase=eliminated===game.imposter?'guess':'results_round';
-  await updateGame({eliminated:newEliminated,lastEliminated:eliminated,phase:nextPhase,votes:{},players:playerUpdates});
+  await updateGame({eliminated:newEliminated,lastEliminated:eliminated,wasTied,phase:nextPhase,votes:{},players:playerUpdates});
 }
 
 function resultsView(){
@@ -642,7 +644,7 @@ function resultsView(){
   <div class="result-box">
     <div class="result-emoji">⚖️</div>
     <p class="result-title">${lastElim?lastElim.name:'A player'} hath been cast out!</p>
-    <p class="result-sub">${game.lastEliminated===game.imposter?'The imposter is revealed!':'Yet... they were innocent. The true imposter still walks among thee!'}</p>
+    <p class="result-sub">${game.wasTied?'The votes were tied — fate hath chosen! ':''}${game.lastEliminated===game.imposter?'The imposter is revealed!':'Yet... they were innocent. The true imposter still walks among thee!'}</p>
   </div>
   <div class="divider"></div>
   ${game.hostId===myId?`<button class="btn btn-primary btn-full" onclick="continueAfterElim()">Continue the Game →</button>`:`<p class="info">Awaiting host to continue...</p>`}`;}
