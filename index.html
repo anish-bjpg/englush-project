@@ -397,7 +397,7 @@ function render(){
 }
 
 // ─── VIEWS ────────────────────────────────────────────────────────────────────
-function homeView(){return`<h1>The Imposter's Gambit</h1>
+function homeView(){return`<h1>Word Spy</h1>
   <p class="subtitle">"All the world's a stage, and all the players mere suspects..."</p>
   <div class="divider"></div>
   <div style="margin-bottom:12px">
@@ -466,7 +466,7 @@ function lobbyView(){
   const isHost=me&&me.host;
   const nonHostReady=players.filter(p=>!p.host).every(p=>p.ready);
   const canStart=players.length>=3&&nonHostReady;
-  return`<h1>The Imposter's Gambit</h1>
+  return`<h1>Word Spy</h1>
   <p class="subtitle" style="margin-bottom:12px">"Assemble, players — the play is nigh!"</p>
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
     <h2 style="margin:0">Room Code</h2>
@@ -523,7 +523,7 @@ function wordView(){
   const game=gameState;if(!game)return'';
   const isImposter=game.imposter===myId;
   const wo=game.wordObj||{word:'???',type:'root',meaning:'unknown',examples:''};
-  return`<h1>The Imposter's Gambit</h1>
+  return`<h1>Word Spy</h1>
   <p class="subtitle" style="margin-bottom:16px">"Know thy role — conceal thy truth!"</p>
   <div class="word-reveal">
     <p class="word-label">${isImposter?'Thou art the IMPOSTER — thou knowest not the word!':'The secret word is...'}</p>
