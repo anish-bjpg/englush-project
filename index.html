@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Imposter's Gambit — A Shakespearean Word Game</title>
+<title>Word Spy — A Shakespearean Word Game</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
@@ -346,7 +346,7 @@ function listenToRoom(code) {
     const data = snap.val();
     if (!data) { view = 'home'; gameState = null; render(); return; }
     gameState = data;
-    const phaseMap = {lobby:'lobby',word:'word',discuss:'discuss',vote:'vote',results_round:'results',guess:'guess',final:'final'};
+    const phaseMap = {lobby:'lobby',word:'word',discuss:'discuss',vote:'vote',results_round:'results',guess:'guess',final:'final',tiebreak:'tiebreak',tiebreak_vote:'tiebreak_vote'};
     const newView = phaseMap[data.phase] || data.phase;
     if (newView !== view) { view = newView; }
     render();
@@ -392,6 +392,8 @@ function render(){
   else if(view==='results')app.innerHTML=resultsView();
   else if(view==='guess')app.innerHTML=guessView();
   else if(view==='final')app.innerHTML=finalView();
+  else if(view==='tiebreak'){app.innerHTML=tiebreakView();startTiebreakTimer();}
+  else if(view==='tiebreak_vote')app.innerHTML=tiebreakVoteView();
 }
 
 // ─── VIEWS ────────────────────────────────────────────────────────────────────
@@ -693,6 +695,131 @@ async function submitGuess(){
   await updateGame({imposterGuess:guess,imposterGotIt:got,imposterWon:false,phase:'final'});
 }
 
+
+function tiebreakView(){
+  const game=gameState;if(!game)return'';
+  const players=Object.values(game.players||{});
+  const tied=game.tiedPlayers||[];
+  const idx=game.tiebreakIdx||0;
+  const currentId=tied[idx];
+  const currentPlayer=players.find(p=>p.id===currentId);
+  const isMe=currentId===myId;
+  const tiebreakStart=game.tiebreakStart||Date.now();
+  const elapsed=Math.floor((Date.now()-tiebreakStart)/1000);
+  const remaining=Math.max(0,30-elapsed);
+  // Auto-advance timer using local interval
+  if(isMe&&remaining<=0&&game.hostId===myId){
+    setTimeout(()=>advanceTiebreak(),500);
+  }
+  return`<h1>The Tiebreaker</h1>
+  <p class="subtitle" style="margin-bottom:14px">"The votes are tied — the accused must plead their case!"</p>
+  <div class="discuss-box" style="text-align:center">
+    <p style="font-size:11px;color:var(--muted);font-style:italic;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Now pleading (${idx+1} of ${tied.length})</p>
+    <p style="font-family:'Cinzel',serif;font-size:20px;font-weight:700;color:var(--red);margin-bottom:4px">${currentPlayer?currentPlayer.name:'???'}</p>
+    ${isMe?`<p style="font-size:13px;color:var(--ink);font-style:italic;margin-top:6px">"Speak now — convince thy peers of thine innocence!"</p>`
+    :`<p style="font-size:13px;color:var(--muted);font-style:italic;margin-top:6px">"Listen carefully — dost thou believe them?"</p>`}
+  </div>
+  <div id="tiebreak-timer-wrap" style="margin:16px 0;text-align:center">
+    <div style="font-family:'Cinzel',serif;font-size:48px;font-weight:700;color:${remaining<=10?'var(--red)':'var(--ink)'}" id="tiebreak-timer">${remaining}</div>
+    <div style="font-size:12px;color:var(--muted);font-style:italic">seconds remaining</div>
+    <div style="margin:10px auto;width:80%;height:8px;background:rgba(184,134,11,0.2);border-radius:4px;overflow:hidden">
+      <div style="height:100%;background:${remaining<=10?'var(--red)':'var(--gold)'};border-radius:4px;width:${Math.round(remaining/30*100)}%;transition:width 1s linear"></div>
+    </div>
+  </div>
+  <div class="discuss-box">
+    <p style="font-size:11px;color:var(--muted);font-style:italic;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Still to plead:</p>
+    <p style="font-size:13px;color:var(--ink)">${tied.slice(idx+1).map(id=>{const p=players.find(x=>x.id===id);return p?p.name:'???';}).join(', ')||'None — vote follows!'}</p>
+  </div>
+  ${game.hostId===myId?`<button class="btn btn-primary btn-full" onclick="advanceTiebreak()" style="margin-top:8px">${idx+1<tied.length?'Next Player →':'Proceed to Vote →'}</button>`
+  :`<p class="info">Host will advance when time is up...</p>`}`;
+}
+
+let tiebreakInterval=null;
+function startTiebreakTimer(){
+  if(tiebreakInterval)clearInterval(tiebreakInterval);
+  tiebreakInterval=setInterval(()=>{
+    const timerEl=document.getElementById('tiebreak-timer');
+    if(!timerEl){clearInterval(tiebreakInterval);return;}
+    if(!gameState)return;
+    const elapsed=Math.floor((Date.now()-(gameState.tiebreakStart||Date.now()))/1000);
+    const remaining=Math.max(0,30-elapsed);
+    timerEl.textContent=remaining;
+    timerEl.style.color=remaining<=10?'var(--red)':'var(--ink)';
+    const bar=timerEl.parentElement&&timerEl.parentElement.querySelector('div[style*="height:100%"]');
+    if(bar)bar.style.width=Math.round(remaining/30*100)+'%';
+    // Auto-advance for host when timer hits 0
+    if(remaining<=0&&gameState.hostId===myId){
+      clearInterval(tiebreakInterval);
+      advanceTiebreak();
+    }
+  },1000);
+}
+
+async function advanceTiebreak(){
+  const game=gameState;if(!game)return;
+  const tied=game.tiedPlayers||[];
+  const idx=game.tiebreakIdx||0;
+  if(idx+1<tied.length){
+    await updateGame({tiebreakIdx:idx+1,tiebreakStart:Date.now()});
+  } else {
+    // All have pled — move to tiebreak vote (only among tied players)
+    await updateGame({phase:'tiebreak_vote',votes:null,tiebreakStart:null});
+  }
+}
+
+function tiebreakVoteView(){
+  const game=gameState;if(!game)return'';
+  const players=Object.values(game.players||{});
+  const tied=game.tiedPlayers||[];
+  const tiedPlayers=players.filter(p=>tied.includes(p.id));
+  const nonTied=players.filter(p=>p.alive&&!tied.includes(p.id));
+  const myVote=game.votes&&game.votes[myId];
+  const amTied=tied.includes(myId);
+  const allVotes=game.votes||{};
+  const totalVotes=Object.keys(allVotes).length;
+  const totalVoters=nonTied.length; // only non-tied players vote
+  const allVoted=totalVotes>=totalVoters;
+  let tallies={};
+  tiedPlayers.forEach(p=>{tallies[p.id]=0;});
+  Object.values(allVotes).forEach(v=>{if(tallies[v]!==undefined)tallies[v]++;});
+  return`<h1>The Runoff Vote</h1>
+  <p class="subtitle" style="margin-bottom:12px">"The accused have pled — now cast thy final judgement!"</p>
+  ${amTied?`<div class="discuss-box"><p class="discuss-q">"Thou art among the accused — thou canst not vote. Await thy fate..."</p></div>`
+  :!myVote?`<p style="font-size:13px;color:var(--muted);font-style:italic;margin-bottom:8px">Vote — who amongst the accused is the imposter?</p>
+  <div class="vote-grid">${tiedPlayers.map(p=>`<div class="vote-btn" onclick="castVote('${p.id}')">${p.name}</div>`).join('')}</div>`
+  :`<p class="info" style="margin-bottom:8px">Thy vote hath been cast. (${totalVotes}/${totalVoters})</p>`}
+  <div class="divider"></div>
+  <p style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:6px">Current tally:</p>
+  ${tiedPlayers.map(p=>{const pct=totalVotes>0?Math.round(tallies[p.id]/totalVotes*100):0;return`<div class="vote-bar">
+    <span class="vote-bar-name">${p.name.split(' ')[0]}</span>
+    <div class="vote-bar-track"><div class="vote-bar-fill" style="width:${pct}%"></div></div>
+    <span class="vote-bar-count">${tallies[p.id]}</span>
+  </div>`;}).join('')}
+  ${allVoted&&game.hostId===myId?`<button class="btn btn-primary btn-full" onclick="revealTiebreakVote()" style="margin-top:12px">⚔ Reveal the Verdict</button>`
+  :allVoted?`<p class="info" style="margin-top:8px">All voted! Waiting for host to reveal...</p>`
+  :`<p class="info" style="margin-top:8px">Awaiting ${totalVoters-totalVotes} more vote(s)...</p>`}`;
+}
+
+async function revealTiebreakVote(){
+  const game=gameState;if(!game)return;
+  const players=Object.values(game.players||{});
+  const tied=game.tiedPlayers||[];
+  let tallies={};
+  tied.forEach(id=>{tallies[id]=0;});
+  Object.values(game.votes||{}).forEach(v=>{if(tallies[v]!==undefined)tallies[v]++;});
+  let maxV=0;
+  Object.values(tallies).forEach(c=>{if(c>maxV)maxV=c;});
+  const tiedAgain=Object.entries(tallies).filter(([,c])=>c===maxV).map(([id])=>id);
+  // If still tied after plea round, pick randomly — no more rounds
+  const eliminated=tiedAgain[Math.floor(Math.random()*tiedAgain.length)];
+  const wasTied=tiedAgain.length>1;
+  const newEliminated=[...(game.eliminated||[]),eliminated];
+  const playerUpdates={};
+  players.forEach(p=>{playerUpdates[p.id]={...p,alive:p.id!==eliminated};});
+  const nextPhase=eliminated===game.imposter?'guess':'results_round';
+  await updateGame({eliminated:newEliminated,lastEliminated:eliminated,wasTied,tiedPlayers:null,tiebreakIdx:0,phase:nextPhase,votes:null,players:playerUpdates});
+}
+
 function finalView(){
   const game=gameState;if(!game)return'';
   const players=Object.values(game.players||{});
@@ -757,7 +884,8 @@ async function leaveGame(){
 Object.assign(window, {
   switchTab, setLevel, createRoom, joinRoom, setReady, startGame,
   goDiscuss, prevQ, nextQ, goVote, forceVote, castVote, revealVote,
-  continueAfterElim, submitGuess, playAgain, leaveGame
+  continueAfterElim, submitGuess, playAgain, leaveGame,
+  advanceTiebreak, revealTiebreakVote
 });
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
