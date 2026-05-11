@@ -650,15 +650,11 @@ function resultsView(){
     <p class="result-sub">${game.wasTied?'The votes were tied — fate hath chosen! ':''}${game.lastEliminated===game.imposter?'The imposter is revealed!':'Yet... they were innocent. The true imposter still walks among thee!'}</p>
   </div>
   <div class="divider"></div>
-  ${game.hostId===myId?`<button class="btn btn-primary btn-full" onclick="continueAfterElim()">Continue the Game →</button>`:`<p class="info">Awaiting host to continue...</p>`}`;}
+  ${game.hostId===myId?`<button class="btn btn-primary btn-full" onclick="continueAfterElim()">⚔ Reveal Final Results</button>`:`<p class="info">Awaiting host to continue...</p>`}`;}
 
 async function continueAfterElim(){
   const game=gameState;if(!game)return;
-  const alive=Object.values(game.players||{}).filter(p=>p.alive).length;
-  // Generate new seed for next round's speaking order
-  const newSeed = Math.floor(Math.random() * 0x7fffffff);
-  if(alive<=2){await updateGame({phase:'final',imposterWon:true});}
-  else{await updateGame({phase:'discuss',qIdx:0,voteRequests:[],speakSeed:newSeed});}
+  await updateGame({phase:'final'});
 }
 
 async function submitGuess(){
