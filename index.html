@@ -346,7 +346,7 @@ function listenToRoom(code) {
     const data = snap.val();
     if (!data) { view = 'home'; gameState = null; render(); return; }
     gameState = data;
-    const phaseMap = {lobby:'lobby',word:'word',discuss:'discuss',vote:'vote',results_round:'results',guess:'guess',final:'final',tiebreak:'tiebreak',tiebreak_vote:'tiebreak_vote'};
+    const phaseMap = {lobby:'lobby',word:'word',discuss:'discuss',vote:'vote',results_round:'results',final:'final',tiebreak:'tiebreak',tiebreak_vote:'tiebreak_vote'};
     const newView = phaseMap[data.phase] || data.phase;
     if (newView !== view) { view = newView; }
     render();
@@ -390,7 +390,6 @@ function render(){
   else if(view==='discuss')app.innerHTML=discussView();
   else if(view==='vote')app.innerHTML=voteView();
   else if(view==='results')app.innerHTML=resultsView();
-  else if(view==='guess')app.innerHTML=guessView();
   else if(view==='final')app.innerHTML=finalView();
   else if(view==='tiebreak'){app.innerHTML=tiebreakView();startTiebreakTimer();}
   else if(view==='tiebreak_vote')app.innerHTML=tiebreakVoteView();
@@ -537,7 +536,6 @@ function wordView(){
   <div class="hint-box">
     <div class="hint-label">🕵 Thy Secret Clue</div>
     <div class="hint-value">${wo.type.toUpperCase()} — "${wo.meaning}"</div>
-    <div class="hint-sub" style="margin-top:4px">e.g. ${wo.examples}</div>
   </div>`:''}
   <div class="discuss-box">
     <p class="discuss-q">${isImposter
@@ -635,8 +633,10 @@ async function revealVote(){
   const newEliminated=[...(game.eliminated||[]),eliminated];
   const playerUpdates={};
   players.forEach(p=>{playerUpdates[p.id]={...p,alive:p.id!==eliminated};});
-  const nextPhase=eliminated===game.imposter?'guess':'results_round';
-  await updateGame({eliminated:newEliminated,lastEliminated:eliminated,wasTied,phase:nextPhase,votes:{},players:playerUpdates});
+  const isImposter=eliminated===game.imposter;
+  const nextPhase=isImposter?'final':'results_round';
+  const imposterWon=false;
+  await updateGame({eliminated:newEliminated,lastEliminated:eliminated,wasTied,phase:nextPhase,votes:{},players:playerUpdates,imposterWon,imposterGotIt:false,imposterGuess:''});
 }
 
 function resultsView(){
@@ -661,30 +661,6 @@ async function continueAfterElim(){
   else{await updateGame({phase:'discuss',qIdx:0,voteRequests:[],speakSeed:newSeed});}
 }
 
-function guessView(){
-  const game=gameState;if(!game)return'';
-  const isImposter=game.imposter===myId;
-  const players=Object.values(game.players||{});
-  const imposterPlayer=players.find(p=>p.id===game.imposter);
-  const wo=game.wordObj||{};
-  return`<h1>The Final Gambit</h1>
-  <p class="subtitle" style="margin-bottom:14px">"The imposter is unmasked — but can they guess the word?"</p>
-  <div class="discuss-box">
-    <p class="discuss-q">"${imposterPlayer?imposterPlayer.name:'The imposter'} hath been voted out! If they can name the secret root or affix, glory shall be theirs!"</p>
-  </div>
-  ${!isImposter&&wo.type?`<div style="margin:10px 0;padding:10px 14px;background:var(--parchment2);border:1px solid var(--border);border-radius:3px;font-size:13px;color:var(--muted);font-style:italic">
-    The word was: <strong style="font-family:'Cinzel',serif;color:var(--red)">${wo.word}</strong> — meaning "${wo.meaning}"
-  </div>`:''}
-  <div class="divider"></div>
-  ${isImposter?`<p style="font-size:13px;color:var(--muted);font-style:italic;margin-bottom:4px">Clue — the word is a <strong style="color:var(--ink)">${wo.type||'root/prefix/suffix'}</strong>.</p>
-    <label style="font-size:13px;color:var(--muted);font-style:italic;display:block;margin-bottom:6px;margin-top:8px">Thy guess:</label>
-    <input type="text" id="guessInput" placeholder="Name the root, prefix, or suffix..." maxlength="40" style="margin-bottom:10px">
-    <button class="btn btn-primary btn-full" onclick="submitGuess()">⚔ Submit My Guess</button>`
-  :`<p class="info">${imposterPlayer?imposterPlayer.name:'The imposter'} is making their guess...</p>`}`;}
-
-function normalizeWord(s){
-  return s.toLowerCase().replace(/[-\/\s]/g,'');
-}
 async function submitGuess(){
   const game=gameState;if(!game)return;
   const guess=document.getElementById('guessInput').value.trim();
@@ -816,8 +792,9 @@ async function revealTiebreakVote(){
   const newEliminated=[...(game.eliminated||[]),eliminated];
   const playerUpdates={};
   players.forEach(p=>{playerUpdates[p.id]={...p,alive:p.id!==eliminated};});
-  const nextPhase=eliminated===game.imposter?'guess':'results_round';
-  await updateGame({eliminated:newEliminated,lastEliminated:eliminated,wasTied,tiedPlayers:null,tiebreakIdx:0,phase:nextPhase,votes:null,players:playerUpdates});
+  const isImposter2=eliminated===game.imposter;
+  const nextPhase=isImposter2?'final':'results_round';
+  await updateGame({eliminated:newEliminated,lastEliminated:eliminated,wasTied,tiedPlayers:null,tiebreakIdx:0,phase:nextPhase,votes:null,players:playerUpdates,imposterWon:false,imposterGotIt:false,imposterGuess:''});
 }
 
 function finalView(){
@@ -827,8 +804,7 @@ function finalView(){
   const wo=game.wordObj||{word:'???',type:'root',meaning:'',examples:''};
   let titleText,subText,emoji;
   if(game.imposterWon){emoji='🎭';titleText='The Imposter Hath Won!';subText=`${imposterPlayer?imposterPlayer.name:'The imposter'} survived to the end, never unmasked!`;}
-  else if(game.imposterGotIt){emoji='🎉';titleText='A Bittersweet Victory!';subText=`The imposter ${imposterPlayer?imposterPlayer.name:''} was unmasked, yet guessed the word correctly! Honours are shared!`;}
-  else{emoji='⚔';titleText='The Townsfolk Triumph!';subText=`The imposter guessed "${game.imposterGuess||'nothing'}" — wrong! Justice prevails!`;}
+  else{emoji='⚔';titleText='The Townsfolk Triumph!';subText=`${imposterPlayer?imposterPlayer.name:'The imposter'} was unmasked and cast out! Justice prevails!`;}
   return`<h1>The Final Curtain</h1>
   <p class="subtitle" style="margin-bottom:12px">"The play is done — what fate hath been wrought?"</p>
   <div class="result-box">
@@ -884,7 +860,7 @@ async function leaveGame(){
 Object.assign(window, {
   switchTab, setLevel, createRoom, joinRoom, setReady, startGame,
   goDiscuss, prevQ, nextQ, goVote, forceVote, castVote, revealVote,
-  continueAfterElim, submitGuess, playAgain, leaveGame,
+  continueAfterElim, playAgain, leaveGame,
   advanceTiebreak, revealTiebreakVote
 });
 
