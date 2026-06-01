@@ -407,7 +407,7 @@ function render(){
   const app=document.getElementById('app');
   if(view==='home')app.innerHTML=homeView();
   else if(view==='lobby')app.innerHTML=lobbyView();
-  else if(view==='word')app.innerHTML=wordView();
+  else if(view==='word'){app.innerHTML=wordView();startWordCountdown();}
   else if(view==='discuss')app.innerHTML=discussView();
   else if(view==='vote')app.innerHTML=voteView();
   else if(view==='results')app.innerHTML=resultsView();
@@ -591,26 +591,27 @@ function wordView(){
       ?'"Use thy clue wisely — thou knowest the type but not the word. Listen, blend in, and protect thy ally. If voted out, name the word to steal victory!"'
       :'"Memorise thy word and its meaning. Discuss only in allusions — never name the word directly!"'}</p>
   </div>
-  <button class="btn btn-primary btn-full" id="proceedBtn" disabled style="margin-top:12px">⚔ Proceed to Discussion (<span id="proceedCountdown">10</span>s)</button>
-  <script>
-  (function(){
-    let t=10;
-    const iv=setInterval(()=>{
-      t--;
-      const cd=document.getElementById('proceedCountdown');
-      const btn=document.getElementById('proceedBtn');
-      if(!cd||!btn){clearInterval(iv);return;}
-      if(t<=0){
-        clearInterval(iv);
-        btn.disabled=false;
-        btn.innerHTML='⚔ Proceed to Discussion';
-        btn.onclick=goDiscuss;
-      } else {
-        cd.textContent=t;
-      }
-    },1000);
-  })();
-  <\/script>`;}
+  <button class="btn btn-primary btn-full" id="proceedBtn" disabled style="margin-top:12px">⚔ Proceed to Discussion (<span id="proceedCountdown">10</span>s)</button>`;}
+
+let wordCountdownInterval = null;
+function startWordCountdown(){
+  if(wordCountdownInterval) clearInterval(wordCountdownInterval);
+  let t = 10;
+  wordCountdownInterval = setInterval(()=>{
+    t--;
+    const cd = document.getElementById('proceedCountdown');
+    const btn = document.getElementById('proceedBtn');
+    if(!cd || !btn){ clearInterval(wordCountdownInterval); return; }
+    if(t <= 0){
+      clearInterval(wordCountdownInterval);
+      btn.disabled = false;
+      btn.innerHTML = '⚔ Proceed to Discussion';
+      btn.onclick = goDiscuss;
+    } else {
+      cd.textContent = t;
+    }
+  }, 1000);
+}
 
 async function goDiscuss(){
   if(gameState&&gameState.phase==='word') await updateGame({phase:'discuss'});
