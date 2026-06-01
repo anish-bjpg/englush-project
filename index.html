@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Word Spy — A Word Game</title>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -45,7 +44,6 @@
   .word-meaning{font-size:15px;color:var(--ink);font-style:italic;margin-top:4px;border-top:1px solid var(--border);padding-top:10px;}
   .word-examples{font-size:12px;color:var(--muted);margin-top:4px;}
   .imposter-tag{font-size:13px;color:var(--muted);font-style:italic;margin-top:6px;}
-  /* Imposter hint box */
   .hint-box{background:rgba(139,26,26,0.08);border:1px solid rgba(139,26,26,0.3);border-radius:4px;padding:12px 16px;margin:10px 0;text-align:center;}
   .hint-label{font-size:11px;color:var(--red);font-style:italic;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
   .hint-value{font-family:'Cinzel',serif;font-size:16px;font-weight:600;color:var(--ink);}
@@ -73,9 +71,16 @@
   .level-select{display:flex;gap:8px;margin-bottom:12px;}
   .level-btn{flex:1;padding:8px;text-align:center;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-family:'Cinzel',serif;font-size:12px;color:var(--muted);transition:all 0.15s;background:var(--parchment2);}
   .level-btn.active{border-color:var(--gold);color:var(--ink);background:rgba(184,134,11,0.12);}
+  /* Imposter count toggle */
+  .imposter-select{display:flex;gap:8px;margin-bottom:12px;}
+  .imposter-btn{flex:1;padding:8px;text-align:center;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-family:'Cinzel',serif;font-size:12px;color:var(--muted);transition:all 0.15s;background:var(--parchment2);}
+  .imposter-btn.active{border-color:var(--red);color:var(--red);background:rgba(139,26,26,0.08);}
   .loading{text-align:center;padding:60px 20px;font-style:italic;color:var(--muted);}
   .spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:12px;}
   @keyframes spin{to{transform:rotate(360deg)}}
+  .ally-box{background:rgba(26,74,26,0.08);border:1px solid rgba(26,74,26,0.3);border-radius:4px;padding:10px 16px;margin:8px 0;text-align:center;}
+  .ally-label{font-size:11px;color:var(--green);font-style:italic;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+  .ally-name{font-family:'Cinzel',serif;font-size:15px;font-weight:600;color:var(--ink);}
 </style>
 </head>
 <body>
@@ -89,7 +94,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, update, get, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-// ─── FIREBASE CONFIG ─────────────────────────────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyDI6Lo5pMe1Zz51AFBz3rcbYbL10b9KOSg",
   authDomain: "english-proyecto.firebaseapp.com",
@@ -326,15 +330,12 @@ const QUESTIONS=[
   "If thy word were a weapon, what kind would it be?",
 ];
 
-
-
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let myId = localStorage.getItem('shx_uid') || ('p_'+Math.random().toString(36).slice(2,9));
 localStorage.setItem('shx_uid', myId);
-let myName = '', myRoom = '', view = 'home', selectedLevel = 'freshman';
+let myName = '', myRoom = '', view = 'home', selectedLevel = 'freshman', selectedImposters = 1;
 let unsubscribe = null, gameState = null;
 
-// ─── FIREBASE HELPERS ─────────────────────────────────────────────────────────
 function roomRef(path) {
   return ref(database, path ? 'rooms/'+myRoom+'/'+path : 'rooms/'+myRoom);
 }
@@ -365,7 +366,6 @@ async function updateGame(updates) {
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function shuffleArr(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
 
-// Seeded shuffle so all clients get same order from same seed
 function seededShuffle(arr, seed) {
   const a = [...arr];
   let s = seed;
@@ -380,6 +380,27 @@ function seededShuffle(arr, seed) {
 function pickWord(level){const pool=level==='sophomore'?SOPHOMORE:level==='both'?[...FRESHMAN,...SOPHOMORE]:FRESHMAN;return pool[Math.floor(Math.random()*pool.length)];}
 function genCode(){let c='';while(c.length<5){c+=Math.random().toString(36).toUpperCase().replace(/[^A-Z]/g,'');}return c.slice(0,5);}
 function levelLabel(l){return l==='sophomore'?'Sophomore':l==='both'?'Both Lists':'Freshman';}
+
+// Check if current player is an imposter
+function amIImposter(game) {
+  const imposters = game.imposters || (game.imposter ? [game.imposter] : []);
+  return imposters.includes(myId);
+}
+
+// Get all imposter IDs
+function getImposters(game) {
+  return game.imposters || (game.imposter ? [game.imposter] : []);
+}
+
+// Check win condition: imposters win if they equal/outnumber innocents among alive players
+function checkImposterWin(game) {
+  const players = Object.values(game.players || {});
+  const aliveIds = players.filter(p => p.alive).map(p => p.id);
+  const imposters = getImposters(game);
+  const aliveImposters = imposters.filter(id => aliveIds.includes(id)).length;
+  const aliveInnocents = aliveIds.length - aliveImposters;
+  return aliveImposters >= aliveInnocents;
+}
 
 // ─── RENDER ───────────────────────────────────────────────────────────────────
 function render(){
@@ -414,6 +435,11 @@ function homeView(){return`<h1>Word Spy</h1>
       <div class="level-btn ${selectedLevel==='sophomore'?'active':''}" id="lvl-sophomore" onclick="setLevel('sophomore')">Sophomore</div>
       <div class="level-btn ${selectedLevel==='both'?'active':''}" id="lvl-both" onclick="setLevel('both')">Both</div>
     </div>
+    <p style="font-size:13px;color:var(--muted);font-style:italic;margin-bottom:8px">Number of imposters:</p>
+    <div class="imposter-select">
+      <div class="imposter-btn ${selectedImposters===1?'active':''}" id="imp-1" onclick="setImposters(1)">🎭 One Imposter</div>
+      <div class="imposter-btn ${selectedImposters===2?'active':''}" id="imp-2" onclick="setImposters(2)">🎭🎭 Two Imposters</div>
+    </div>
     <button class="btn btn-primary btn-full" onclick="createRoom()">⚔ Raise the Curtain</button>
   </div>
   <div id="panelJoin" style="display:none">
@@ -423,6 +449,11 @@ function homeView(){return`<h1>Word Spy</h1>
   </div>`;}
 
 function setLevel(l){selectedLevel=l;['freshman','sophomore','both'].forEach(x=>{const el=document.getElementById('lvl-'+x);if(el)el.className='level-btn'+(x===l?' active':'');});}
+
+function setImposters(n){
+  selectedImposters=n;
+  [1,2].forEach(x=>{const el=document.getElementById('imp-'+x);if(el)el.className='imposter-btn'+(x===n?' active':'');});
+}
 
 function switchTab(t){
   document.getElementById('tabCreate').className='tab'+(t==='create'?' active':'');
@@ -435,7 +466,7 @@ async function createRoom(){
   myName=document.getElementById('nameInput').value.trim();
   if(!myName){alert('Prithee, enter thy name!');return;}
   const code=genCode(); myRoom=code;
-  const game={code,phase:'lobby',hostId:myId,wordObj:null,imposter:'',votes:{},eliminated:[],questions:[],qIdx:0,imposterGuess:'',imposterGotIt:false,imposterWon:false,level:selectedLevel,voteRequests:[],speakSeed:0,
+  const game={code,phase:'lobby',hostId:myId,wordObj:null,imposters:[],imposter:'',votes:{},eliminated:[],questions:[],qIdx:0,imposterGuess:'',imposterGotIt:false,imposterWon:false,level:selectedLevel,imposterCount:selectedImposters,voteRequests:[],speakSeed:0,
     players:{[myId]:{id:myId,name:myName,host:true,ready:false,alive:true,order:Date.now()}}};
   await set(ref(database,'rooms/'+code), game);
   listenToRoom(code);
@@ -463,8 +494,10 @@ function lobbyView(){
   const players=Object.values(game.players||{}).sort((a,b)=>a.order-b.order);
   const me=players.find(p=>p.id===myId);
   const isHost=me&&me.host;
+  const impCount=game.imposterCount||1;
+  const minPlayers=impCount===2?5:3;
   const nonHostReady=players.filter(p=>!p.host).every(p=>p.ready);
-  const canStart=players.length>=3&&nonHostReady;
+  const canStart=players.length>=minPlayers&&nonHostReady;
   return`<h1>Word Spy</h1>
   <p class="subtitle" style="margin-bottom:12px">"Assemble, players — the play is nigh!"</p>
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -475,6 +508,7 @@ function lobbyView(){
   <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px">
     <span style="font-size:12px;color:var(--muted);font-style:italic">Share this code — works on any device!</span>
     <span class="badge badge-${game.level==='sophomore'?'soph':'fresh'}">${levelLabel(game.level)}</span>
+    <span style="font-family:'Cinzel',serif;font-size:10px;padding:2px 7px;border-radius:2px;font-weight:600;background:rgba(139,26,26,0.12);color:var(--red);border:1px solid rgba(139,26,26,0.3)">${impCount===2?'2 Imposters':'1 Imposter'}</span>
   </div>
   <div class="divider"></div>
   <h2>Players on Stage</h2>
@@ -490,7 +524,7 @@ function lobbyView(){
   <div class="divider"></div>
   ${!isHost&&me&&!me.ready?`<button class="btn btn-gold btn-full" onclick="setReady()" style="margin-bottom:8px">✓ Mark Thyself Ready</button>`:''}
   ${isHost?`<button class="btn btn-primary btn-full" ${canStart?'':'disabled'} onclick="startGame()" style="margin-bottom:8px">
-    ${canStart?'⚔ Begin the Performance!':'Awaiting players to ready up...'}</button>`
+    ${canStart?'⚔ Begin the Performance!':`Awaiting players... (need ${minPlayers}+)`}</button>`
   :`<p class="info">Awaiting the host to begin...</p>`}
   <button class="btn btn-secondary btn-full" onclick="leaveGame()">Leave Stage</button>`;}
 
@@ -501,17 +535,19 @@ async function setReady(){
 async function startGame(){
   const game=gameState;if(!game)return;
   const players=Object.values(game.players||{});
-  if(players.length<3){alert('Need at least 3 players!');return;}
+  const impCount=game.imposterCount||1;
+  if(players.length<(impCount===2?5:3)){alert(`Need at least ${impCount===2?5:3} players!`);return;}
   const wo=pickWord(game.level||'freshman');
-  const ids=players.map(p=>p.id);
-  const imposter=ids[Math.floor(Math.random()*ids.length)];
+  const ids=shuffleArr(players.map(p=>p.id));
+  // Pick imposter(s)
+  const imposters=ids.slice(0,impCount);
   const qs=shuffleArr([...QUESTIONS]).slice(0,Math.min(players.length+2,QUESTIONS.length));
   const speakSeed=Math.floor(Math.random()*0x7fffffff);
   const playerUpdates={};
   players.forEach(p=>{playerUpdates[p.id]={...p,alive:true};});
   try{
     await update(ref(database,'rooms/'+myRoom),{
-      wordObj:wo,imposter,phase:'word',questions:qs,qIdx:0,
+      wordObj:wo,imposters,imposter:imposters[0],phase:'word',questions:qs,qIdx:0,
       votes:null,eliminated:null,imposterGuess:'',imposterGotIt:false,
       imposterWon:false,voteRequests:null,speakSeed,wasTied:false,players:playerUpdates
     });
@@ -520,12 +556,19 @@ async function startGame(){
 
 function wordView(){
   const game=gameState;if(!game)return'';
-  const isImposter=game.imposter===myId;
+  const isImposter=amIImposter(game);
+  const imposters=getImposters(game);
   const wo=game.wordObj||{word:'???',type:'root',meaning:'unknown',examples:''};
+  // Find ally name if 2 imposters
+  let allyName='';
+  if(isImposter&&imposters.length>1){
+    const ally=Object.values(game.players||{}).find(p=>p.id!==myId&&imposters.includes(p.id));
+    if(ally)allyName=ally.name;
+  }
   return`<h1>Word Spy</h1>
   <p class="subtitle" style="margin-bottom:16px">"Know thy role — conceal thy truth!"</p>
   <div class="word-reveal">
-    <p class="word-label">${isImposter?'Thou art the IMPOSTER — thou knowest not the word!':'The secret word is...'}</p>
+    <p class="word-label">${isImposter?'Thou art an IMPOSTER — thou knowest not the word!':'The secret word is...'}</p>
     <div class="word-big">${isImposter?'???':wo.word}</div>
     ${!isImposter?`<div class="word-type">${wo.type}</div>
     <div class="word-meaning">"${wo.meaning}"</div>
@@ -536,20 +579,44 @@ function wordView(){
   <div class="hint-box">
     <div class="hint-label">🕵 Thy Secret Clue</div>
     <div class="hint-value">${wo.type.toUpperCase()} — "${wo.meaning}"</div>
+  </div>
+  ${allyName?`<div class="ally-box">
+    <div class="ally-label">🤝 Thy Fellow Imposter</div>
+    <div class="ally-name">${allyName}</div>
+    <div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:4px">Do not expose each other!</div>
   </div>`:''}
+  `:''}
   <div class="discuss-box">
     <p class="discuss-q">${isImposter
-      ?'"Use thy clue wisely — thou knowest the type but not the word. Listen to how others speak and blend in. If voted out, name the word to steal victory!"'
-      :'"Memorise thy word and its meaning. Discuss only in allusions and riddles — never name the word directly!"'}</p>
+      ?'"Use thy clue wisely — thou knowest the type but not the word. Listen, blend in, and protect thy ally. If voted out, name the word to steal victory!"'
+      :'"Memorise thy word and its meaning. Discuss only in allusions — never name the word directly!"'}</p>
   </div>
-  <button class="btn btn-primary btn-full" onclick="goDiscuss()" style="margin-top:12px">⚔ Proceed to Discussion</button>`;}
+  <button class="btn btn-primary btn-full" id="proceedBtn" disabled style="margin-top:12px">⚔ Proceed to Discussion (<span id="proceedCountdown">10</span>s)</button>
+  <script>
+  (function(){
+    let t=10;
+    const iv=setInterval(()=>{
+      t--;
+      const cd=document.getElementById('proceedCountdown');
+      const btn=document.getElementById('proceedBtn');
+      if(!cd||!btn){clearInterval(iv);return;}
+      if(t<=0){
+        clearInterval(iv);
+        btn.disabled=false;
+        btn.innerHTML='⚔ Proceed to Discussion';
+        btn.onclick=goDiscuss;
+      } else {
+        cd.textContent=t;
+      }
+    },1000);
+  })();
+  <\/script>`;}
 
 async function goDiscuss(){
   if(gameState&&gameState.phase==='word') await updateGame({phase:'discuss'});
 }
 
 function getSpeakOrder(game) {
-  // Use the stored seed so all clients get identical order
   const seed = game.speakSeed || 1;
   const alive = Object.values(game.players||{}).filter(p=>p.alive);
   return seededShuffle(alive, seed);
@@ -557,7 +624,6 @@ function getSpeakOrder(game) {
 
 function discussView(){
   const game=gameState;if(!game)return'';
-  // Use seeded shuffle for consistent order across all devices
   const players = getSpeakOrder(game);
   return`<h1>The Grand Discussion</h1>
   <p class="subtitle" style="margin-bottom:16px">"Speak wisely — the imposter lurks among thee!"</p>
@@ -633,9 +699,29 @@ async function revealVote(){
   const newEliminated=[...(game.eliminated||[]),eliminated];
   const playerUpdates={};
   players.forEach(p=>{playerUpdates[p.id]={...p,alive:p.id!==eliminated};});
-  const isImposter=eliminated===game.imposter;
-  const nextPhase=isImposter?'final':'results_round';
-  const imposterWon=false;
+
+  const imposters=getImposters(game);
+  const isImposter=imposters.includes(eliminated);
+
+  // Check if all imposters eliminated
+  const remainingImposters=imposters.filter(id=>id!==eliminated);
+  const aliveAfter=players.filter(p=>p.alive&&p.id!==eliminated);
+  const aliveImpCount=remainingImposters.filter(id=>aliveAfter.find(p=>p.id===id)).length;
+  const aliveInnocents=aliveAfter.length-aliveImpCount;
+
+  let nextPhase;
+  let imposterWon=false;
+  if(remainingImposters.length===0){
+    // All imposters eliminated
+    nextPhase='final';
+  } else if(aliveImpCount>=aliveInnocents){
+    // Imposters equal/outnumber innocents
+    nextPhase='final';
+    imposterWon=true;
+  } else {
+    nextPhase=isImposter?'results_round':'results_round';
+  }
+
   await updateGame({eliminated:newEliminated,lastEliminated:eliminated,wasTied,phase:nextPhase,votes:{},players:playerUpdates,imposterWon,imposterGotIt:false,imposterGuess:''});
 }
 
@@ -643,30 +729,102 @@ function resultsView(){
   const game=gameState;if(!game)return'';
   const players=Object.values(game.players||{});
   const lastElim=players.find(p=>p.id===game.lastEliminated);
+  const imposters=getImposters(game);
+  const wasImposter=imposters.includes(game.lastEliminated);
+  const remainingImposters=imposters.filter(id=>{const p=players.find(x=>x.id===id);return p&&p.alive;});
   return`<h1>The Verdict</h1>
   <div class="result-box">
     <div class="result-emoji">⚖️</div>
     <p class="result-title">${lastElim?lastElim.name:'A player'} hath been cast out!</p>
-    <p class="result-sub">${game.wasTied?'The votes were tied — fate hath chosen! ':''}${game.lastEliminated===game.imposter?'The imposter is revealed!':'Yet... they were innocent. The true imposter still walks among thee!'}</p>
+    <p class="result-sub">${game.wasTied?'The votes were tied — fate hath chosen! ':''}${wasImposter
+      ?remainingImposters.length>0
+        ?`An imposter is revealed! But another still walks among thee... (${remainingImposters.length} imposter${remainingImposters.length>1?'s':''} remain)`
+        :'The last imposter is revealed! Justice prevails!'
+      :'Yet... they were innocent. The true imposter still walks among thee!'}</p>
   </div>
   <div class="divider"></div>
-  ${game.hostId===myId?`<button class="btn btn-primary btn-full" onclick="continueAfterElim()">⚔ Reveal Final Results</button>`:`<p class="info">Awaiting host to continue...</p>`}`;}
+  ${game.hostId===myId?`<button class="btn btn-primary btn-full" onclick="continueAfterElim()">⚔ Continue the Proceedings</button>`:`<p class="info">Awaiting host to continue...</p>`}`;}
 
 async function continueAfterElim(){
   const game=gameState;if(!game)return;
-  await updateGame({phase:'final'});
+  // Check imposter win condition before continuing
+  if(checkImposterWin(game)){
+    await updateGame({phase:'final',imposterWon:true});
+  } else {
+    await updateGame({phase:'discuss',votes:null,voteRequests:null,speakSeed:Math.floor(Math.random()*0x7fffffff)});
+  }
 }
 
-async function submitGuess(){
+function finalView(){
+  const game=gameState;if(!game)return'';
+  const players=Object.values(game.players||{});
+  const imposters=getImposters(game);
+  const imposterPlayers=players.filter(p=>imposters.includes(p.id));
+  const wo=game.wordObj||{word:'???',type:'root',meaning:'',examples:''};
+  let titleText,subText,emoji;
+  if(game.imposterWon){
+    emoji='🎭';
+    titleText='The Imposters Hath Won!';
+    subText=imposterPlayers.length>1
+      ?`${imposterPlayers.map(p=>p.name).join(' & ')} survived — their conspiracy proved too cunning!`
+      :`${imposterPlayers[0]?.name||'The imposter'} survived to the end, never unmasked!`;
+  } else {
+    emoji='⚔';
+    titleText='The Townsfolk Triumph!';
+    subText=imposterPlayers.length>1
+      ?`${imposterPlayers.map(p=>p.name).join(' & ')} were unmasked and cast out! Justice prevails!`
+      :`${imposterPlayers[0]?.name||'The imposter'} was unmasked and cast out! Justice prevails!`;
+  }
+  return`<h1>The Final Curtain</h1>
+  <p class="subtitle" style="margin-bottom:12px">"The play is done — what fate hath been wrought?"</p>
+  <div class="result-box">
+    <div class="result-emoji">${emoji}</div>
+    <p class="result-title">${titleText}</p>
+    <p class="result-sub">${subText}</p>
+  </div>
+  <div class="word-reveal" style="margin:0 0 12px">
+    <p class="word-label">The secret word was...</p>
+    <div class="word-big">${wo.word}</div>
+    <div class="word-type">${wo.type}</div>
+    <div class="word-meaning">"${wo.meaning}"</div>
+    <div class="word-examples">e.g. ${wo.examples}</div>
+  </div>
+  <h2>The Players</h2>
+  <ul class="player-list" style="margin-bottom:14px">
+    ${players.map(p=>`<li>
+      <span style="font-size:15px">${imposters.includes(p.id)?'🎭':'👑'}</span>
+      <span style="flex:1">${p.name}</span>
+      <span style="font-size:12px;color:var(--muted);font-style:italic">${imposters.includes(p.id)?'Imposter':'Townsfolk'}</span>
+    </li>`).join('')}
+  </ul>
+  ${game.hostId===myId?`<button class="btn btn-primary btn-full" onclick="playAgain()" style="margin-bottom:8px">⚔ Play Again</button>`:''}
+  <button class="btn btn-secondary btn-full" onclick="leaveGame()">Leave Stage</button>`;}
+
+async function playAgain(){
   const game=gameState;if(!game)return;
-  const guess=document.getElementById('guessInput').value.trim();
-  if(!guess)return;
-  const wo=game.wordObj||{};
-  const variants=(wo.word||'').split('/').map(normalizeWord);
-  const got=variants.includes(normalizeWord(guess));
-  await updateGame({imposterGuess:guess,imposterGotIt:got,imposterWon:false,phase:'final'});
+  const players={};
+  Object.values(game.players||{}).forEach(p=>{players[p.id]={...p,ready:false,alive:true};});
+  await updateGame({phase:'lobby',players,wordObj:null,imposters:[],imposter:'',votes:null,eliminated:null,imposterGuess:'',imposterGotIt:false,imposterWon:false,voteRequests:null,speakSeed:0,wasTied:false});
 }
 
+async function leaveGame(){
+  if(myRoom){
+    const snap=await get(ref(database,'rooms/'+myRoom+'/players'));
+    const players=snap.val()||{};
+    delete players[myId];
+    if(Object.keys(players).length===0){
+      await remove(ref(database,'rooms/'+myRoom));
+    } else {
+      if(gameState&&gameState.hostId===myId){
+        const first=Object.values(players).sort((a,b)=>a.order-b.order)[0];
+        if(first){players[first.id].host=true;await update(ref(database,'rooms/'+myRoom),{players,hostId:first.id});}
+      } else {
+        await remove(ref(database,'rooms/'+myRoom+'/players/'+myId));
+      }
+    }
+  }
+  stopListening();myRoom='';view='home';gameState=null;render();
+}
 
 function tiebreakView(){
   const game=gameState;if(!game)return'';
@@ -679,7 +837,6 @@ function tiebreakView(){
   const tiebreakStart=game.tiebreakStart||Date.now();
   const elapsed=Math.floor((Date.now()-tiebreakStart)/1000);
   const remaining=Math.max(0,30-elapsed);
-  // Auto-advance timer using local interval
   if(isMe&&remaining<=0&&game.hostId===myId){
     setTimeout(()=>advanceTiebreak(),500);
   }
@@ -717,9 +874,6 @@ function startTiebreakTimer(){
     const remaining=Math.max(0,30-elapsed);
     timerEl.textContent=remaining;
     timerEl.style.color=remaining<=10?'var(--red)':'var(--ink)';
-    const bar=timerEl.parentElement&&timerEl.parentElement.querySelector('div[style*="height:100%"]');
-    if(bar)bar.style.width=Math.round(remaining/30*100)+'%';
-    // Auto-advance for host when timer hits 0
     if(remaining<=0&&gameState.hostId===myId){
       clearInterval(tiebreakInterval);
       advanceTiebreak();
@@ -734,7 +888,6 @@ async function advanceTiebreak(){
   if(idx+1<tied.length){
     await updateGame({tiebreakIdx:idx+1,tiebreakStart:Date.now()});
   } else {
-    // All have pled — move to tiebreak vote (only among tied players)
     await updateGame({phase:'tiebreak_vote',votes:null,tiebreakStart:null});
   }
 }
@@ -749,7 +902,7 @@ function tiebreakVoteView(){
   const amTied=tied.includes(myId);
   const allVotes=game.votes||{};
   const totalVotes=Object.keys(allVotes).length;
-  const totalVoters=nonTied.length; // only non-tied players vote
+  const totalVoters=nonTied.length;
   const allVoted=totalVotes>=totalVoters;
   let tallies={};
   tiedPlayers.forEach(p=>{tallies[p.id]=0;});
@@ -782,85 +935,30 @@ async function revealTiebreakVote(){
   let maxV=0;
   Object.values(tallies).forEach(c=>{if(c>maxV)maxV=c;});
   const tiedAgain=Object.entries(tallies).filter(([,c])=>c===maxV).map(([id])=>id);
-  // If still tied after plea round, pick randomly — no more rounds
   const eliminated=tiedAgain[Math.floor(Math.random()*tiedAgain.length)];
   const wasTied=tiedAgain.length>1;
   const newEliminated=[...(game.eliminated||[]),eliminated];
   const playerUpdates={};
   players.forEach(p=>{playerUpdates[p.id]={...p,alive:p.id!==eliminated};});
-  const isImposter2=eliminated===game.imposter;
-  const nextPhase=isImposter2?'final':'results_round';
-  await updateGame({eliminated:newEliminated,lastEliminated:eliminated,wasTied,tiedPlayers:null,tiebreakIdx:0,phase:nextPhase,votes:null,players:playerUpdates,imposterWon:false,imposterGotIt:false,imposterGuess:''});
+  const imposters=getImposters(game);
+  const remainingImposters=imposters.filter(id=>id!==eliminated);
+  const aliveAfter=players.filter(p=>p.alive&&p.id!==eliminated);
+  const aliveImpCount=remainingImposters.filter(id=>aliveAfter.find(p=>p.id===id)).length;
+  const aliveInnocents=aliveAfter.length-aliveImpCount;
+  let nextPhase,imposterWon=false;
+  if(remainingImposters.length===0){nextPhase='final';}
+  else if(aliveImpCount>=aliveInnocents){nextPhase='final';imposterWon=true;}
+  else{nextPhase='results_round';}
+  await updateGame({eliminated:newEliminated,lastEliminated:eliminated,wasTied,tiedPlayers:null,tiebreakIdx:0,phase:nextPhase,votes:null,players:playerUpdates,imposterWon,imposterGotIt:false,imposterGuess:''});
 }
 
-function finalView(){
-  const game=gameState;if(!game)return'';
-  const players=Object.values(game.players||{});
-  const imposterPlayer=players.find(p=>p.id===game.imposter);
-  const wo=game.wordObj||{word:'???',type:'root',meaning:'',examples:''};
-  let titleText,subText,emoji;
-  if(game.imposterWon){emoji='🎭';titleText='The Imposter Hath Won!';subText=`${imposterPlayer?imposterPlayer.name:'The imposter'} survived to the end, never unmasked!`;}
-  else{emoji='⚔';titleText='The Townsfolk Triumph!';subText=`${imposterPlayer?imposterPlayer.name:'The imposter'} was unmasked and cast out! Justice prevails!`;}
-  return`<h1>The Final Curtain</h1>
-  <p class="subtitle" style="margin-bottom:12px">"The play is done — what fate hath been wrought?"</p>
-  <div class="result-box">
-    <div class="result-emoji">${emoji}</div>
-    <p class="result-title">${titleText}</p>
-    <p class="result-sub">${subText}</p>
-  </div>
-  <div class="word-reveal" style="margin:0 0 12px">
-    <p class="word-label">The secret word was...</p>
-    <div class="word-big">${wo.word}</div>
-    <div class="word-type">${wo.type}</div>
-    <div class="word-meaning">"${wo.meaning}"</div>
-    <div class="word-examples">e.g. ${wo.examples}</div>
-  </div>
-  <h2>The Players</h2>
-  <ul class="player-list" style="margin-bottom:14px">
-    ${players.map(p=>`<li>
-      <span style="font-size:15px">${p.id===game.imposter?'🎭':'👑'}</span>
-      <span style="flex:1">${p.name}</span>
-      <span style="font-size:12px;color:var(--muted);font-style:italic">${p.id===game.imposter?'The Imposter':'Townsfolk'}</span>
-    </li>`).join('')}
-  </ul>
-  ${game.hostId===myId?`<button class="btn btn-primary btn-full" onclick="playAgain()" style="margin-bottom:8px">⚔ Play Again</button>`:''}
-  <button class="btn btn-secondary btn-full" onclick="leaveGame()">Leave Stage</button>`;}
-
-async function playAgain(){
-  const game=gameState;if(!game)return;
-  const players={};
-  Object.values(game.players||{}).forEach(p=>{players[p.id]={...p,ready:false,alive:true};});
-  await updateGame({phase:'lobby',players,wordObj:null,imposter:'',votes:null,eliminated:null,imposterGuess:'',imposterGotIt:false,imposterWon:false,voteRequests:null,speakSeed:0,wasTied:false});
-}
-
-async function leaveGame(){
-  if(myRoom){
-    const snap=await get(ref(database,'rooms/'+myRoom+'/players'));
-    const players=snap.val()||{};
-    delete players[myId];
-    if(Object.keys(players).length===0){
-      await remove(ref(database,'rooms/'+myRoom));
-    } else {
-      if(gameState&&gameState.hostId===myId){
-        const first=Object.values(players).sort((a,b)=>a.order-b.order)[0];
-        if(first){players[first.id].host=true;await update(ref(database,'rooms/'+myRoom),{players,hostId:first.id});}
-      } else {
-        await remove(ref(database,'rooms/'+myRoom+'/players/'+myId));
-      }
-    }
-  }
-  stopListening();myRoom='';view='home';gameState=null;render();
-}
-
-// Expose all functions to window so onclick handlers work inside type="module"
 Object.assign(window, {
-  switchTab, setLevel, createRoom, joinRoom, setReady, startGame,
+  switchTab, setLevel, setImposters, createRoom, joinRoom, setReady, startGame,
   goDiscuss, prevQ, nextQ, goVote, forceVote, castVote, revealVote,
   continueAfterElim, playAgain, leaveGame,
   advanceTiebreak, revealTiebreakVote
 });
 
-// ─── BOOT ─────────────────────────────────────────────────────────────────────
 render();
 </script>
 </body>
